@@ -1,0 +1,10 @@
+# Livros (direito autoral + arquivos pesados) — NÃO publicar
+*.pdf
+
+# Config local de preview
+.claude/
+
+# SO / editores
+Thumbs.db
+.DS_Store
+*.log

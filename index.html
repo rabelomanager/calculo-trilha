@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f766e" />
+<title>Trilha de Cálculo</title>
+
+<!-- PWA / instalável no celular -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Cálculo" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="description" content="Do fundamental ao Cálculo I — diagnóstico, trilha adaptativa e revisões espaçadas." />
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  :root { color-scheme: light; }
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { overscroll-behavior-y: contain; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#f6f7f9; }
+  button { touch-action: manipulation; }
+  .fade-in { animation: fade .25s ease-out both; }
+  @keyframes fade { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  .pop { animation: pop .35s cubic-bezier(.2,.9,.3,1.4) both; }
+  @keyframes pop { 0%{transform:scale(.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .shake { animation: shake .3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+  .katex { font-size: 1.05em; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
+  .safe-b { padding-bottom: env(safe-area-inset-bottom); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/plain" id="app-src">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ============================ UTIL ============================ */
+const DAY = 86400000;
+const todayKey = (offset=0) => { const d = new Date(Date.now() + offset*DAY); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+const fmtDate = (ts) => new Date(ts).toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+const hasTex = (s)=> typeof s==='string' && /\\|\^|_|\{|\\frac|\\lim|\\int/.test(s);
+
+function M({ tex, block }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && window.katex) { try { window.katex.render(tex, ref.current, { throwOnError:false, displayMode: !!block }); } catch(e){ ref.current.textContent = tex; } }
+    else if (ref.current) { ref.current.textContent = tex; }
+  }, [tex, block]);
+  return block ? <div className="my-2 overflow-x-auto text-center" ref={ref}>{tex}</div> : <span ref={ref}>{tex}</span>;
+}
+// renderiza string que pode ter LaTeX ou texto puro
+function T({s}){ return hasTex(s) ? <M tex={s}/> : <span>{s}</span>; }
+
+/* dificuldade */
+const DIFF = {
+  1:{n:'Fácil', emo:'🟢', cls:'text-green-700 bg-green-50 border-green-200'},
+  2:{n:'Médio', emo:'🟡', cls:'text-amber-700 bg-amber-50 border-amber-200'},
+  3:{n:'Difícil', emo:'🔴', cls:'text-red-700 bg-red-50 border-red-200'},
+};
+
+/* ============================ CONTEÚDO ============================
+   Cada skill: teoria + exemplos + POOL de exercícios graduados por dificuldade (d:1|2|3).
+   Estilo/notação alinhados a Stewart (Vol I, 7ed) e Guidorizzi (Vol 1).
+================================================================== */
+const P=(t)=>({t:'p',c:t}); const F=(t)=>({t:'f',c:t}); const TIP=(t)=>({t:'tip',c:t}); const MET=(t)=>({t:'met',c:t});
+// helpers de exercício
+const mc=(d,q,options,a,hint,sol)=>({d,type:'mc',q,options,a,hint,sol,tex:true});
+const nu=(d,q,a,tol,hint,sol)=>({d,type:'num',q,a,tol:tol||0.001,hint,sol});
+// versões com fonte (exercícios dos livros): src = 'Stewart' | 'Guidorizzi'
+const mcS=(d,q,options,a,hint,sol,src)=>({d,type:'mc',q,options,a,hint,sol,tex:true,src});
+const nuS=(d,q,a,tol,hint,sol,src)=>({d,type:'num',q,a,tol:tol||0.001,hint,sol,src});
+
+const CURR = [
+  /* -------- FUNDAMENTAL -------- */
+  { id:'frac', mod:'Fundamentos', level:'fund', title:'Frações e operações', icon:'➗', method:'Visual + regra prática',
+    theory:[ MET('Começamos com a imagem (a pizza) e só depois formalizamos a regra.'),
+      P('a/b são "a partes de um todo dividido em b". Somar exige o mesmo denominador.'),
+      F('\\frac{a}{b}+\\frac{c}{d}=\\frac{ad+bc}{bd}'),
+      TIP('Multiplicar: numerador×numerador, denominador×denominador. Dividir = multiplicar pelo inverso.') ],
+    examples:[ {q:'\\frac{1}{2}+\\frac{1}{3}', steps:['Denominador comum = 6','\\frac{3}{6}+\\frac{2}{6}=\\frac{5}{6}']},
+      {q:'\\frac{2}{3}\\div\\frac{4}{5}', steps:['Inverte a segunda: \\frac{2}{3}\\times\\frac{5}{4}','=\\frac{10}{12}=\\frac{5}{6}']} ],
+    pool:[
+      mc(1,'Quanto é \\frac{1}{4}+\\frac{1}{2}?',['\\frac{2}{6}','\\frac{3}{4}','\\frac{1}{6}','\\frac{2}{3}'],1,'Deixe as duas com denominador 4.','1/4 + 2/4 = 3/4.'),
+      nu(1,'Quanto é \\frac{2}{3}\\times\\frac{3}{4}? (decimal)',0.5,0.01,'Multiplique reto e simplifique.','6/12 = 1/2 = 0,5.'),
+      nu(2,'Quanto é \\frac{1}{2}+\\frac{1}{3}? (decimal)',0.6667,0.01,'Denominador comum 6.','3/6+2/6 = 5/6 ≈ 0,833.'),
+      mc(2,'Quanto é \\frac{3}{5}\\div\\frac{4}{5}?',['\\frac{12}{25}','\\frac{3}{4}','\\frac{4}{3}','1'],1,'Inverta a segunda e multiplique.','(3/5)(5/4)=15/20=3/4.'),
+      nu(3,'Quanto é \\frac{1}{2}+\\frac{1}{3}-\\frac{1}{6}? (decimal)',0.6667,0.01,'Tudo com denominador 6.','3/6+2/6-1/6 = 4/6 = 2/3.'),
+    ]},
+  { id:'pot', mod:'Fundamentos', level:'fund', title:'Potências e raízes', icon:'⚡', method:'Padrões e regularidades',
+    theory:[ MET('Descobrir a regra observando o padrão, em vez de decorar.'),
+      P('Potência é multiplicação repetida; as propriedades saem disso:'),
+      F('a^m\\cdot a^n=a^{m+n},\\quad \\frac{a^m}{a^n}=a^{m-n},\\quad (a^m)^n=a^{mn}'),
+      F('a^{-n}=\\frac{1}{a^n},\\qquad a^{1/n}=\\sqrt[n]{a}'),
+      TIP('Expoente negativo NÃO deixa o número negativo — vira fração.') ],
+    examples:[ {q:'2^3\\cdot 2^4', steps:['Soma expoentes: 2^{7}','=128']}, {q:'9^{1/2}', steps:['Expoente 1/2 é raiz','=\\sqrt9=3']} ],
+    pool:[
+      nu(1,'Quanto vale 2^{-2}? (decimal)',0.25,0.001,'Expoente negativo vira 1/2².','1/4 = 0,25.'),
+      mc(1,'Simplifique \\frac{x^5}{x^2}.',['x^{10}','x^{3}','x^{7}','x^{2/5}'],1,'Divisão de mesma base: subtraia expoentes.','x^{5-2}=x³.'),
+      nu(2,'Quanto é 2^3\\cdot 2^2?',32,0.001,'Some os expoentes.','2⁵ = 32.'),
+      mc(2,'Simplifique (x^2)^3.',['x^5','x^6','x^8','x^9'],1,'Multiplique os expoentes.','x^{2·3}=x⁶.'),
+      nu(3,'Quanto é 9^{1/2}+8^{1/3}?',5,0.001,'Raiz quadrada de 9 e raiz cúbica de 8.','3 + 2 = 5.'),
+    ]},
+  { id:'eq1', mod:'Fundamentos', level:'fund', title:'Equações do 1º grau', icon:'⚖️', method:'Balança (isolamento)',
+    theory:[ MET('Balança: o que faço de um lado, faço do outro.'),
+      P('Isolar a incógnita com operações inversas dos dois lados.'), F('ax+b=0 \\Rightarrow x=-\\frac{b}{a}') ],
+    examples:[ {q:'2x+6=0', steps:['-6: 2x=-6','÷2: x=-3']} ],
+    pool:[
+      nu(1,'Resolva 3x-9=0. x = ?',3,0.001,'Passe o 9 e divida por 3.','3x=9 ⇒ x=3.'),
+      nu(1,'Resolva x+7=10. x = ?',3,0.001,'Subtraia 7 dos dois lados.','x=3.'),
+      nu(2,'Resolva 5x+2=17. x = ?',3,0.001,'Isole 5x primeiro.','5x=15 ⇒ x=3.'),
+      nu(2,'Resolva 2(x-1)=8. x = ?',5,0.001,'Divida por 2 ou distribua.','x-1=4 ⇒ x=5.'),
+      nu(3,'Resolva 3x-5=2x+4. x = ?',9,0.001,'Junte os x de um lado.','x=9.'),
+    ]},
+
+  /* -------- ENSINO MÉDIO -------- */
+  { id:'func', mod:'Ensino Médio', level:'med', title:'Funções: domínio e imagem', icon:'🔗', method:'Máquina de entrada/saída',
+    theory:[ MET('Máquina: entra x, sai f(x). Uma entrada → uma única saída.'),
+      P('Domínio = entradas permitidas; Imagem = saídas obtidas.'),
+      F('f(x)=\\sqrt{x}\\Rightarrow \\text{Domínio}: x\\ge 0'),
+      TIP('Cuidado com o que "quebra": divisão por zero e raiz de negativo restringem o domínio.') ],
+    examples:[ {q:'f(x)=\\frac{1}{x-2}', steps:['Denominador ≠ 0','Domínio: x\\ne 2']} ],
+    pool:[
+      nu(1,'Se f(x)=x^2+1, quanto é f(3)?',10,0.001,'Substitua x por 3.','9+1=10.'),
+      mc(1,'Domínio de f(x)=\\sqrt{x-3}?',['x\\le 3','x\\ge 3','x\\ne 3','todos os reais'],1,'Dentro da raiz ≥ 0.','x-3≥0 ⇒ x≥3.'),
+      mc(2,'Domínio de f(x)=\\frac{1}{x-2}?',['x\\ge 2','x\\ne 2','x\\le 2','x>0'],1,'Denominador não pode zerar.','x≠2.'),
+      nu(2,'Se f(x)=2x-1, para qual x temos f(x)=5?',3,0.001,'Resolva 2x-1=5.','x=3.'),
+      mc(3,'Domínio de f(x)=\\frac{\\sqrt{x}}{x-1}?',['x\\ge 0','x\\ge 0,\\ x\\ne 1','x\\ne 1','x>1'],1,'Raiz pede x≥0 e denominador ≠0.','x≥0 e x≠1.'),
+    ]},
+  { id:'afim', mod:'Ensino Médio', level:'med', title:'Função afim (1º grau)', icon:'📈', method:'Leitura de gráfico',
+    theory:[ MET('Ligar fórmula ↔ reta o tempo todo.'),
+      P('Reta f(x)=ax+b: a é a inclinação (taxa de variação); b corta o eixo y.'), F('f(x)=ax+b'),
+      TIP('Essa ideia de "taxa" volta forte na derivada!') ],
+    examples:[ {q:'f(x)=2x+1', steps:['Inclinação 2, corta y em 1','+1 em x ⇒ +2 em y']} ],
+    pool:[
+      nu(1,'Na reta f(x)=3x-4, quanto vale f(2)?',2,0.001,'3·2 - 4.','6-4=2.'),
+      mc(1,'Em f(x)=-2x+5, a função é:',['crescente','decrescente','constante','nenhuma'],1,'Olhe o sinal de a.','a<0 ⇒ decrescente.'),
+      nu(2,'A reta passa por (0,1) e (2,5). Qual a inclinação a?',2,0.001,'a = Δy/Δx.','(5-1)/(2-0)=2.'),
+      nu(2,'Em f(x)=2x+1, para qual x temos f(x)=0?',-0.5,0.01,'Resolva 2x+1=0.','x=-1/2.'),
+      nu(3,'A reta passa por (1,3) e (3,7). Quanto é f(5)?',11,0.001,'Ache a e b, depois f(5).','a=2, b=1 ⇒ f(5)=11.'),
+    ]},
+  { id:'quad', mod:'Ensino Médio', level:'med', title:'Função quadrática', icon:'⛰️', method:'Parábola + Bhaskara',
+    theory:[ MET('Entender a forma (parábola) e as ferramentas (vértice, raízes).'),
+      P('a>0: concavidade p/ cima (mínimo); a<0: p/ baixo (máximo).'),
+      F('x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a},\\ \\Delta=b^2-4ac'), F('x_{v}=-\\frac{b}{2a}'),
+      TIP('O vértice é a antessala do máximo/mínimo por derivada.') ],
+    examples:[ {q:'x^2-5x+6=0', steps:['\\Delta=1','x=\\frac{5\\pm1}{2}\\Rightarrow 3 \\text{ ou } 2']} ],
+    pool:[
+      nu(1,'Some as raízes de x^2-5x+6=0.',5,0.001,'As raízes são 2 e 3.','2+3=5.'),
+      nu(1,'Qual o x do vértice de f(x)=x^2-6x+8?',3,0.001,'x_v=-b/2a.','6/2=3.'),
+      nu(2,'Qual o produto das raízes de x^2-5x+6=0?',6,0.001,'Raízes 2 e 3.','2·3=6.'),
+      mc(2,'A parábola de f(x)=-x^2+2 tem concavidade para:',['cima','baixo','esquerda','direita'],1,'Olhe o sinal de a.','a<0 ⇒ para baixo.'),
+      nu(3,'Qual o valor mínimo de f(x)=x^2-6x+8?',-1,0.001,'Calcule f no vértice x=3.','f(3)=9-18+8=-1.'),
+    ]},
+  { id:'explog', mod:'Ensino Médio', level:'med', title:'Exponencial e logaritmo', icon:'🌱', method:'Crescimento e operação inversa',
+    theory:[ MET('log é só a pergunta inversa da exponencial.'),
+      P('Exponencial cresce/decai multiplicativamente; log responde "a que expoente elevo a base?".'),
+      F('\\log_a b = x \\iff a^x = b'), F('\\ln e = 1,\\ \\log(ab)=\\log a+\\log b'),
+      TIP('O número e (~2,718) e ln aparecem sem parar em cálculo.') ],
+    examples:[ {q:'\\log_2 8', steps:['2^{?}=8','=3']} ],
+    pool:[
+      nu(1,'Quanto é \\log_3 27?',3,0.001,'3 elevado a quê dá 27?','3³=27 ⇒ 3.'),
+      nu(1,'Quanto é \\log_{10} 1000?',3,0.001,'10³=1000.','3.'),
+      nu(2,'Quanto é \\log_2 32?',5,0.001,'2 elevado a quê dá 32?','2⁵=32 ⇒ 5.'),
+      mc(2,'\\log(a\\cdot b) é igual a:',['\\log a\\cdot\\log b','\\log a+\\log b','\\log a-\\log b','\\frac{\\log a}{\\log b}'],1,'Produto vira soma.','log a + log b.'),
+      nu(3,'Quanto é \\log_2 8 + \\log_3 9?',5,0.001,'Calcule cada log.','3 + 2 = 5.'),
+    ]},
+  { id:'trig', mod:'Ensino Médio', level:'med', title:'Trigonometria essencial', icon:'📐', method:'Círculo trigonométrico',
+    theory:[ MET('Ancorar tudo no círculo de raio 1 e nos ângulos notáveis.'),
+      P('Triângulo retângulo: sen = oposto/hipotenusa; cos = adjacente/hipotenusa.'),
+      F('\\sin^2\\theta+\\cos^2\\theta=1'), F('\\sin 30^\\circ=\\tfrac12,\\ \\cos 60^\\circ=\\tfrac12,\\ \\sin 90^\\circ=1'),
+      TIP('(sen x)\'=cos x — você vai amar isso na derivada.') ],
+    examples:[ {q:'\\cos 0^\\circ', steps:['Aponta para (1,0)','=1']} ],
+    pool:[
+      nu(1,'Quanto vale \\sin 90^\\circ?',1,0.001,'Topo do círculo.','1.'),
+      mc(1,'A identidade fundamental é:',['\\sin\\theta+\\cos\\theta=1','\\sin^2\\theta+\\cos^2\\theta=1','\\sin^2\\theta-\\cos^2\\theta=1','\\tan\\theta=1'],1,'Vem de Pitágoras no círculo.','sen²+cos²=1.'),
+      nu(2,'Quanto vale \\sin 30^\\circ? (decimal)',0.5,0.01,'Ângulo notável.','1/2 = 0,5.'),
+      mc(2,'Quanto vale \\cos 60^\\circ?',['1','\\frac{1}{2}','\\frac{\\sqrt3}{2}','0'],1,'Ângulo notável.','1/2.'),
+      nu(3,'Quanto é \\sin 30^\\circ + \\cos 60^\\circ? (decimal)',1,0.01,'Some os dois valores notáveis.','0,5 + 0,5 = 1.'),
+    ]},
+
+  /* -------- CÁLCULO I -------- */
+  { id:'lim-int', mod:'Cálculo I — Limites', level:'sup', title:'Limite: noção intuitiva', icon:'🎯', method:'Chegar perto sem tocar',
+    theory:[ MET('Stewart: construir a intuição por tabelas de valores antes da conta.'),
+      P('Limite: para onde f(x) se aproxima quando x→a, mesmo que f não exista em a.'), F('\\lim_{x\\to a} f(x)=L'),
+      P('Ex.: f(x)=\\frac{x^2-1}{x-1} não existe em x=1 (0/0), mas se aproxima de 2.'),
+      TIP('Limite é sobre a VIZINHANÇA de a, não sobre o valor em a.') ],
+    examples:[ {q:'\\lim_{x\\to 3}(2x+1)', steps:['Contínua: substitua','=7']},
+      {q:'\\lim_{x\\to 1}\\frac{x^2-1}{x-1}', steps:['\\frac{(x-1)(x+1)}{x-1}','\\lim(x+1)=2']} ],
+    pool:[
+      nu(1,'Calcule \\lim_{x\\to 2}(3x-4).',2,0.001,'É contínua: substitua x=2.','6-4=2.'),
+      nu(1,'Calcule \\lim_{x\\to 3}(2x+1).',7,0.001,'Substitua x=3.','7.'),
+      nu(2,'Calcule \\lim_{x\\to 2}\\frac{x^2-4}{x-2}.',4,0.001,'Fatore x²-4=(x-2)(x+2).','lim(x+2)=4.'),
+      nu(2,'Calcule \\lim_{x\\to 1}\\frac{x^2-1}{x-1}.',2,0.001,'Fatore e cancele.','lim(x+1)=2.'),
+      nu(3,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'x²-9=(x-3)(x+3).','lim(x+3)=6.'),
+      nuS(2,'Calcule \\lim_{x\\to 2}\\frac{x^2+x-6}{x-2}.',5,0.001,'Fatore: x²+x-6=(x+3)(x-2).','(x+3)(x-2)/(x-2)=x+3 → 5.','Stewart'),
+      nuS(3,'Calcule \\lim_{x\\to 4}\\frac{\\sqrt{x}-2}{x-4}. (decimal)',0.25,0.01,'Racionalize multiplicando por \\sqrt{x}+2.','1/(√x+2) → 1/4 = 0,25.','Stewart'),
+    ]},
+  { id:'lim-calc', mod:'Cálculo I — Limites', level:'sup', title:'Cálculo de limites e indeterminações', icon:'🧮', method:'Passo a passo + fatoração',
+    theory:[ MET('Guidorizzi: reconhecer o tipo de indeterminação e escolher a técnica.'),
+      P('Limite da soma/produto/quociente = operação dos limites (denominador ≠ 0).'),
+      P('Em 0/0: fatoração, conjugado ou simplificação.'), F('\\lim_{x\\to 0}\\frac{\\sin x}{x}=1'),
+      TIP('0/0 e ∞/∞ são INDETERMINAÇÕES: um convite a manipular a expressão.') ],
+    examples:[ {q:'\\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}', steps:['Multiplica pelo conjugado','\\frac{1}{\\sqrt{x+1}+1}','=\\frac12']} ],
+    pool:[
+      nu(1,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'Fatore x²-9.','lim(x+3)=6.'),
+      nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(2x)}{x}.',2,0.001,'Escreva 2·sen(2x)/(2x).','=2·1=2.'),
+      nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(3x)}{x}.',3,0.001,'Fator 3 fora.','=3.'),
+      nu(3,'Calcule \\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}. (decimal)',0.5,0.01,'Conjugado \\sqrt{x+1}+1.','=1/2.'),
+      nu(3,'Calcule \\lim_{x\\to 0}\\frac{\\tan x}{x}.',1,0.001,'tan x = sen x / cos x.','=1.'),
+      nuS(2,'Calcule \\lim_{x\\to -3}\\frac{x^2-9}{x+3}.',-6,0.001,'x²-9=(x-3)(x+3).','(x-3)(x+3)/(x+3)=x-3 → -6.','Guidorizzi'),
+      nuS(3,'Calcule \\lim_{x\\to 2}\\frac{x^3-8}{x-2}.',12,0.001,'x³-8=(x-2)(x²+2x+4).','x²+2x+4 → 4+4+4=12.','Guidorizzi'),
+      nuS(3,'Calcule \\lim_{t\\to 0}\\frac{\\sqrt{t^2+9}-3}{t^2}. (decimal)',0.1667,0.01,'Multiplique pelo conjugado \\sqrt{t^2+9}+3.','1/(√(t²+9)+3) → 1/6 ≈ 0,167.','Stewart'),
+    ]},
+  { id:'cont', mod:'Cálculo I — Limites', level:'sup', title:'Continuidade', icon:'🪢', method:'Desenhar sem tirar o lápis',
+    theory:[ MET('Imagem intuitiva + definição em três condições.'),
+      P('Contínua em a = sem "buraco" nem "salto". Formalmente:'), F('\\lim_{x\\to a} f(x)=f(a)'),
+      P('Exige: (1) f(a) existe; (2) o limite existe; (3) são iguais.'),
+      TIP('Polinômios são contínuos em todo lugar — por isso "substituir" funciona.') ],
+    examples:[ {q:'f(x)=x^2 \\text{ em } x=2', steps:['f(2)=4 e \\lim=4','Iguais ⇒ contínua']} ],
+    pool:[
+      mc(1,'Continuidade em a exige que:',['f(a) não exista','\\lim_{x\\to a}f(x)=f(a)','f seja crescente','a=0'],1,'O limite bate com o valor.','lim = f(a).'),
+      mc(2,'Onde f(x)=x^3-2x é contínua?',['só em x=0','nos reais positivos','em todos os reais','em nenhum ponto'],2,'Polinômios são contínuos.','Em todos os reais.'),
+      mc(2,'Se \\lim_{x\\to a}f(x)=3 mas f(a)=5, então f em a é:',['contínua','descontínua','crescente','indefinida'],1,'Limite ≠ valor.','Descontínua.'),
+      mc(3,'f(x)=\\frac{x^2-1}{x-1} tem descontinuidade em x=1 do tipo:',['salto','removível','infinita','nenhuma'],1,'Dá 0/0 mas o limite existe (=2).','Removível.'),
+      mcS(1,'Se f é contínua em p, então \\lim_{x\\to p} f(x) é igual a:',['0','f(p)','p','não existe'],1,'É a própria definição de continuidade.','lim = f(p).','Guidorizzi'),
+    ]},
+  { id:'der-def', mod:'Cálculo I — Derivadas', level:'sup', title:'Derivada: definição e ideia', icon:'📉', method:'Reta secante → tangente',
+    theory:[ MET('Thomas: partir da inclinação da secante e "espremer" até a tangente.'),
+      P('Derivada = taxa de variação instantânea = inclinação da tangente.'),
+      F('f\'(x)=\\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}'),
+      TIP('Posição→velocidade, custo→custo marginal.') ],
+    examples:[ {q:'f(x)=x^2', steps:['\\frac{2xh+h^2}{h}=2x+h','\\lim_{h\\to0}=2x']} ],
+    pool:[
+      nu(1,'Pela definição, f(x)=x^2 tem f\'(3)=?',6,0.001,'f\'(x)=2x.','2·3=6.'),
+      mc(1,'A derivada representa geometricamente:',['a área sob a curva','a inclinação da tangente','o valor máximo','a raiz'],1,'Secante espremida vira tangente.','Inclinação da tangente.'),
+      nu(2,'Para f(x)=x^2, quanto é f\'(5)?',10,0.001,'f\'(x)=2x.','10.'),
+      nu(2,'Para f(x)=3x, quanto é f\'(x)? (é constante)',3,0.001,'Reta: inclinação constante.','3.'),
+      nu(3,'Para f(x)=x^2+2x, pela definição f\'(1)=?',4,0.001,'f\'(x)=2x+2.','2+2=4.'),
+      nuS(2,'Sendo f(x)=x^2, calcule f\'(4) pela definição.',8,0.001,'f\'(p)=2p.','2·4=8.','Guidorizzi'),
+      nuS(3,'Sendo f(x)=\\frac{1}{x}, calcule f\'(1) pela definição.',-1,0.001,'f\'(x)=-1/x².','-1/1²=-1.','Stewart'),
+    ]},
+  { id:'der-reg', mod:'Cálculo I — Derivadas', level:'sup', title:'Regras de derivação', icon:'🛠️', method:'Kit de regras',
+    theory:[ MET('Montar um "kit" e treinar reconhecimento de padrão.'),
+      F('(x^n)\'=n\\,x^{n-1}'), F('(\\sin x)\'=\\cos x,\\ (\\cos x)\'=-\\sin x,\\ (e^x)\'=e^x,\\ (\\ln x)\'=\\tfrac1x'),
+      F('(uv)\'=u\'v+uv\';\\quad [f(g(x))]\'=f\'(g)\\,g\''),
+      TIP('Regra da cadeia: derive "de fora para dentro".') ],
+    examples:[ {q:'\\frac{d}{dx}x^3', steps:['=3x^2']}, {q:'\\frac{d}{dx}\\sin(x^2)', steps:['cos(x²)·2x','=2x\\cos(x^2)']} ],
+    pool:[
+      mc(1,'A derivada de \\sin x é:',['\\cos x','-\\cos x','\\sin x','-\\sin x'],0,'Seno deriva em cosseno.','cos x.'),
+      nu(1,'Se f(x)=x^4, quanto é f\'(2)? (f\'=4x³)',32,0.001,'4·2³.','4·8=32.'),
+      nu(2,'Se f(x)=x^3, quanto é f\'(2)?',12,0.001,'f\'=3x².','3·4=12.'),
+      mc(2,'A derivada de e^x é:',['x e^{x-1}','e^x','\\frac{1}{x}','1'],1,'Caso especial famoso.','e^x.'),
+      nu(3,'Se f(x)=(x^2+1)^3, pela cadeia f\'(1)=?',24,0.001,'f\'=3(x²+1)²·2x.','3·4·2=24.'),
+      nuS(2,'Derive f(x)=x^3-3x^2+4x e calcule f\'(1).',1,0.001,'f\'=3x²-6x+4.','3-6+4=1.','Stewart'),
+      nuS(3,'Sendo f(x)=(2x+1)^4, calcule f\'(0) pela regra da cadeia.',8,0.001,'f\'=4(2x+1)³·2.','4·1·2=8.','Stewart'),
+    ]},
+  { id:'der-app', mod:'Cálculo I — Derivadas', level:'sup', title:'Aplicações: máximos e mínimos', icon:'🏔️', method:'Otimização por pontos críticos',
+    theory:[ MET('Problema real → função → derivar → zerar → interpretar.'),
+      P('Em máx/mín a tangente é horizontal ⇒ derivada zero.'), F('f\'(x)=0 \\Rightarrow \\text{ponto crítico}'),
+      P('2ª derivada dá concavidade: f\'\'>0 mínimo, f\'\'<0 máximo.'),
+      TIP('Lembra o vértice da parábola? Agora vale para qualquer curva.') ],
+    examples:[ {q:'\\min de x^2-4x+7', steps:['f\'=2x-4=0','x=2']} ],
+    pool:[
+      nu(1,'Onde f(x)=x^2-6x+5 tem mínimo? (x)',3,0.001,'Zere f\'=2x-6.','x=3.'),
+      nu(1,'Onde f(x)=x^2-4x+7 tem mínimo? (x)',2,0.001,'Zere f\'=2x-4.','x=2.'),
+      nu(2,'f(x)=x^2-10x+1 tem ponto crítico em x=?',5,0.001,'f\'=2x-10=0.','x=5.'),
+      mc(2,'Se f\'\'(x)>0 num ponto crítico, ele é:',['máximo','mínimo','de inflexão','indefinido'],1,'Concavidade para cima.','Mínimo.'),
+      nu(3,'f(x)=x^3-3x tem ponto crítico positivo em x=?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1.','x=1.'),
+      nuS(3,'A função f(x)=x^3-3x+1 tem mínimo local em qual x?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1; o mínimo é o positivo.','x=1 (f\'\'>0 ali).','Stewart'),
+    ]},
+  { id:'int-ind', mod:'Cálculo I — Integrais', level:'sup', title:'Integral indefinida (antiderivada)', icon:'🔄', method:'Inversa da derivada',
+    theory:[ MET('A integral "desfaz" a derivada.'),
+      P('Integrar = achar F tal que F\'=f. Como (constante)\'=0, aparece +C.'),
+      F('\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C\\ (n\\ne-1)'), F('\\int \\cos x\\,dx=\\sin x+C,\\ \\int e^x\\,dx=e^x+C'),
+      TIP('Confira integrando: derive o resultado e veja se volta.') ],
+    examples:[ {q:'\\int 2x\\,dx', steps:['=x^2+C']} ],
+    pool:[
+      mc(1,'\\int x^2\\,dx = ?',['2x+C','\\frac{x^3}{3}+C','x^3+C','\\frac{x^2}{2}+C'],1,'Some 1 no expoente e divida.','x³/3 + C.'),
+      nu(1,'Se \\int f\\,dx=x^3+C, então f(2)=? (f=3x²)',12,0.001,'Derive x³.','3·4=12.'),
+      mc(2,'\\int \\cos x\\,dx = ?',['-\\sin x+C','\\sin x+C','\\cos x+C','-\\cos x+C'],1,'Inversa de (sen x)\'.','sen x + C.'),
+      nu(2,'A antiderivada de 6x^2 avaliada em x=1 (isto é 2x³) vale?',2,0.001,'∫6x²dx=2x³.','2·1=2.'),
+      nu(3,'Se F(x)=\\int(3x^2+2x)dx, quanto é F(1)-F(0)? (F=x³+x²)',2,0.001,'F=x³+x².','(1+1)-0=2.'),
+      mcS(2,'\\int \\frac{1}{x}\\,dx = ?',['\\ln|x|+C','x^{-2}+C','-\\frac{1}{x^2}+C','1+C'],0,'Caso especial: n=-1 foge da regra da potência.','ln|x| + C.','Stewart'),
+    ]},
+  { id:'int-def', mod:'Cálculo I — Integrais', level:'sup', title:'Integral definida e área', icon:'📊', method:'Riemann + TFC',
+    theory:[ MET('Área por retângulos (Riemann) → atalho pelo Teorema Fundamental.'),
+      P('Integral definida = área com sinal entre a curva e o eixo x, de a a b.'), F('\\int_a^b f(x)\\,dx = F(b)-F(a)'),
+      P('TFC conecta derivada e integral: integrar é o inverso de derivar.'),
+      TIP('Ache F, avalie em b e em a, e subtraia.') ],
+    examples:[ {q:'\\int_0^2 x\\,dx', steps:['F=\\frac{x^2}{2}','F(2)-F(0)=2']} ],
+    pool:[
+      nu(1,'Calcule \\int_0^3 2x\\,dx.',9,0.001,'Antiderivada x²; 3²-0².','9.'),
+      nu(1,'Calcule \\int_1^2 3x^2\\,dx.',7,0.001,'Antiderivada x³; 2³-1³.','8-1=7.'),
+      nu(2,'Calcule \\int_0^2 x\\,dx.',2,0.001,'F=x²/2.','2-0=2.'),
+      nu(2,'Calcule \\int_0^1 x^2\\,dx. (decimal)',0.3333,0.01,'F=x³/3.','1/3 ≈ 0,333.'),
+      nu(3,'Calcule \\int_0^2 (3x^2-2x)\\,dx.',4,0.001,'F=x³-x².','(8-4)-0=4.'),
+      nu(3,'Calcule \\int_1^3 (2x+1)\\,dx.',10,0.001,'F=x²+x.','(9+3)-(1+1)=10.'),
+      nuS(2,'Calcule \\int_0^1 x^3\\,dx. (decimal)',0.25,0.01,'F=x⁴/4.','1/4 = 0,25.','Stewart'),
+      nuS(3,'Calcule \\int_1^3 x^2\\,dx. (decimal)',8.6667,0.01,'F=x³/3.','27/3 - 1/3 = 26/3 ≈ 8,67.','Guidorizzi'),
+      nuS(3,'Calcule \\int_1^2 (x^2-x)\\,dx. (decimal)',0.8333,0.01,'F=x³/3 - x²/2.','(8/3-2)-(1/3-1/2)=5/6 ≈ 0,83.','Guidorizzi'),
+    ]},
+];
+
+const MODULES = [...new Set(CURR.map(s=>s.mod))];
+const LEVEL_LABEL = { fund:'Fundamental (revisão)', med:'Ensino Médio (lacunas)', sup:'Cálculo (foco)' };
+const BAND_ORDER = ['fund','med','sup'];
+
+/* seleção de questão por dificuldade */
+function pickIdx(pool, d, used){
+  const avail = pool.map((q,i)=>i).filter(i=>used.indexOf(i)<0);
+  if(!avail.length) return null;
+  avail.sort((a,b)=>Math.abs(pool[a].d-d)-Math.abs(pool[b].d-d));
+  return avail[0];
+}
+function pickDiagItem(skill, d){
+  const idx = pickIdx(skill.pool, d, []);
+  // prefere MC no diagnóstico (mais rápido) se houver na dificuldade escolhida
+  const sameD = skill.pool.filter(q=>q.d===d);
+  const mcq = sameD.find(q=>q.type==='mc');
+  return mcq || skill.pool[idx];
+}
+
+/* ============================ ESTADO ============================ */
+const STORE_KEY = 'trilha_calculo_v2';
+const defaultState = () => ({ user:{ name:'', xp:0, streak:0, lastActive:0, diagnosticDone:false, simDays:0 }, skills:{}, reviews:[], log:[] });
+function loadState(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultState(); } catch(e){ return defaultState(); } }
+function saveState(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+
+const LEVELS = [ {min:0,name:'Iniciante',emoji:'🌱'},{min:80,name:'Aprendiz',emoji:'📗'},{min:200,name:'Explorador',emoji:'🧭'},{min:400,name:'Calculista',emoji:'📐'},{min:700,name:'Analista',emoji:'🧠'},{min:1100,name:'Mestre',emoji:'🏆'} ];
+const levelOf = (xp)=>{ let L=LEVELS[0]; for(const l of LEVELS) if(xp>=l.min) L=l; return L; };
+const nextLevel = (xp)=> LEVELS.find(l=>l.min>xp) || null;
+const REVIEW_STAGES = [0, 7, 30];
+
+function useApp(){
+  const [state, setState] = useState(loadState);
+  useEffect(()=>saveState(state), [state]);
+  const now = ()=> todayKey(state.user.simDays);
+  const bumpStreak = (s)=>{ const t=todayKey(s.user.simDays); const last=s.user.lastActive; if(last===t) return s.user.streak; if(last===t-DAY) return s.user.streak+1; return 1; };
+
+  const addXp = useCallback((amount, note)=>{ setState(s=>{ const streak=bumpStreak(s); const t=todayKey(s.user.simDays); return {...s, user:{...s.user, xp:s.user.xp+amount, streak, lastActive:t}, log:[{ts:Date.now(),note,xp:amount},...s.log].slice(0,50)}; }); },[]);
+  const scheduleReviews = (s, skillId)=>{ const t=todayKey(s.user.simDays); const others=s.reviews.filter(r=>r.skillId!==skillId); const news=REVIEW_STAGES.map((d,i)=>({skillId,due:t+d*DAY,stage:i})); return [...others,...news]; };
+
+  const masterSkill = useCallback((skillId, score, lvl)=>{ setState(s=>{ const skills={...s.skills,[skillId]:{status:'mastered',best:Math.max(score,s.skills[skillId]?.best||0),lvl:lvl||s.skills[skillId]?.lvl||1}}; const idx=CURR.findIndex(x=>x.id===skillId); const next=CURR[idx+1]; if(next && (!skills[next.id]||skills[next.id].status==='locked')) skills[next.id]={status:'available',best:0,lvl:skills[next.id]?.lvl||1}; const reviews=scheduleReviews(s,skillId); return {...s,skills,reviews}; }); },[]);
+  const completeReview = useCallback((skillId)=>{ setState(s=>{ const t=todayKey(s.user.simDays); const due=s.reviews.filter(r=>r.skillId===skillId && r.due<=t).sort((a,b)=>a.stage-b.stage); let reviews=s.reviews; if(due[0]) reviews=s.reviews.filter(r=>r!==due[0]); return {...s,reviews}; }); },[]);
+
+  const applyDiagnostic = useCallback((results)=>{ setState(s=>{ const skills={}; let reviews=[...s.reviews]; const t=todayKey(s.user.simDays);
+    CURR.forEach(sk=>{ skills[sk.id]={status:'locked',best:0,lvl:1}; });
+    Object.entries(results).forEach(([id,r])=>{ if(r.ok && skills[id]){ const score=r.d>=3?100:r.d>=2?85:70; skills[id]={status:'mastered',best:score,lvl:r.d}; REVIEW_STAGES.forEach((d,i)=>reviews.push({skillId:id,due:t+d*DAY,stage:i})); } else if(skills[id]){ skills[id]={status:'locked',best:0,lvl:1}; } });
+    const firstOpen=CURR.find(sk=>skills[sk.id].status!=='mastered'); if(firstOpen) skills[firstOpen.id]={...skills[firstOpen.id],status:'available'};
+    return {...s,skills,reviews,user:{...s.user,diagnosticDone:true}}; }); },[]);
+
+  const setName = useCallback((name)=>setState(s=>({...s,user:{...s.user,name}})),[]);
+  const timeTravel = useCallback((days)=>setState(s=>({...s,user:{...s.user,simDays:s.user.simDays+days}})),[]);
+  const reset = useCallback(()=>{ localStorage.removeItem(STORE_KEY); setState(defaultState()); },[]);
+  const dueReviews = useMemo(()=>{ const t=now(); const seen=new Set(); return state.reviews.filter(r=>r.due<=t).filter(r=>{ if(seen.has(r.skillId))return false; seen.add(r.skillId); return true; }); },[state.reviews,state.user.simDays]);
+
+  return { state, now, addXp, masterSkill, completeReview, applyDiagnostic, setName, timeTravel, reset, dueReviews };
+}
+
+/* ============================ UI base ============================ */
+function Bar({value, className=''}){ return <div className={"h-2 rounded-full bg-slate-200 overflow-hidden "+className}><div className="h-full bg-teal-500 transition-all duration-500" style={{width:clamp(value,0,100)+'%'}}/></div>; }
+function DiffChip({d}){ const x=DIFF[d]; return <span className={"text-xs px-2 py-0.5 rounded-full border font-semibold "+x.cls}>{x.emo} {x.n}</span>; }
+
+function TopBar({app}){ const {user}=app.state; const lvl=levelOf(user.xp); const nxt=nextLevel(user.xp); const prog=nxt?((user.xp-lvl.min)/(nxt.min-lvl.min))*100:100;
+  return (<div className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200"><div className="max-w-xl mx-auto px-4 py-2 flex items-center gap-3">
+    <div className="flex items-center gap-1 text-orange-500 font-bold text-lg" title="Sequência de dias">🔥<span>{user.streak}</span></div>
+    <div className="flex-1"><div className="flex justify-between text-[11px] text-slate-500 mb-0.5"><span>{lvl.emoji} {lvl.name}</span><span>{user.xp} XP</span></div><Bar value={prog}/></div>
+  </div></div>); }
+
+/* ============================ Exercício (uma questão) ============================ */
+function Exercise({item, mode, adaptive, onDone}){
+  const [sel,setSel]=useState(null); const [numVal,setNumVal]=useState('');
+  const [phase,setPhase]=useState('idle'); const [ok,setOk]=useState(false);
+  const [showHint,setShowHint]=useState(false); const [showSol,setShowSol]=useState(false);
+  const isDiag = mode==='diag';
+
+  const canCheck = item.type==='mc' ? sel!=null : numVal.trim()!=='';
+  const check=()=>{ let correct=false; if(item.type==='mc') correct=sel===item.a; else { const v=parseFloat(String(numVal).replace(',','.')); correct=!isNaN(v)&&Math.abs(v-item.a)<=(item.tol||0.001); } setOk(correct); setPhase('result'); if(!correct && adaptive) setShowHint(true); };
+  const retry=()=>{ setPhase('idle'); setSel(null); setNumVal(''); setShowSol(false); };
+
+  return (<div className="fade-in">
+    {item.src && <div className="mb-2"><span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':'📗'} Exercício — {item.src}</span></div>}
+    <div className="text-slate-800 text-lg mb-4 leading-relaxed"><M tex={item.q} block/></div>
+    {item.type==='mc' ? (
+      <div className="grid gap-2">{item.options.map((opt,i)=>{ const chosen=sel===i; const right=phase==='result'&&i===item.a; const wrong=phase==='result'&&chosen&&i!==item.a;
+        return <button key={i} disabled={phase==='result'} onClick={()=>phase!=='result'&&setSel(i)}
+          className={"text-left px-4 py-3 rounded-xl border-2 transition min-h-[52px] "+(right?'border-teal-500 bg-teal-50':wrong?'border-red-400 bg-red-50 shake':chosen?'border-teal-500 bg-teal-50':'border-slate-200 bg-white active:scale-[.99]')}>
+          {hasTex(opt)?<M tex={opt}/>:<span>{opt}</span>}</button>; })}</div>
+    ) : (
+      <input type="text" inputMode="decimal" value={numVal} disabled={phase==='result'} onChange={e=>setNumVal(e.target.value)} placeholder="Digite sua resposta"
+        className={"w-full px-4 py-3 rounded-xl border-2 text-lg outline-none "+(phase==='result'?(ok?'border-teal-500 bg-teal-50':'border-red-400 bg-red-50 shake'):'border-slate-200 focus:border-teal-400')}/>
+    )}
+
+    {phase==='result' && ok && <div className="mt-3 text-teal-700 font-semibold pop">✅ Isso aí!</div>}
+    {phase==='result' && !ok && <div className="mt-3 text-sm text-red-600">{isDiag?'Sem problema — isso entra na sua trilha.':'Não foi dessa vez. 💪'}</div>}
+
+    {(showHint || (phase==='result' && !ok && item.hint)) && <div className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">💡 <b>Dica:</b> {item.hint}</div>}
+    {phase==='result' && (ok||showSol) && item.sol && <div className="mt-3 text-sm bg-slate-50 rounded-lg p-3 text-slate-700"><b>Solução:</b> <T s={item.sol}/></div>}
+
+    <div className="mt-4 flex gap-2">
+      {phase==='idle' && <button onClick={check} disabled={!canCheck} className="flex-1 bg-teal-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl active:scale-[.98]">Verificar</button>}
+      {phase==='result' && ok && <button onClick={()=>onDone(true)} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl active:scale-[.98]">Continuar →</button>}
+      {phase==='result' && !ok && isDiag && <button onClick={()=>onDone(false)} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl">Continuar →</button>}
+      {phase==='result' && !ok && !isDiag && !showSol && <>
+        {!showHint && <button onClick={()=>setShowHint(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-600">Dica</button>}
+        <button onClick={retry} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl">Tentar de novo</button>
+        <button onClick={()=>setShowSol(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-500 text-sm">Ver solução</button>
+      </>}
+      {phase==='result' && !ok && !isDiag && showSol && <button onClick={()=>onDone(false)} className="flex-1 bg-slate-600 text-white font-semibold py-3 rounded-xl">Continuar →</button>}
+    </div>
+  </div>);
+}
+
+/* ============================ Diagnóstico adaptativo ============================ */
+function Diagnostic({app}){
+  const [st,setSt]=useState(()=>({ i:0, curDiff:2, bandStreak:0, results:{} }));
+  const skill=CURR[st.i]; const item=pickDiagItem(skill, st.curDiff);
+
+  const answer=(correct)=>{
+    const results={...st.results,[skill.id]:{ok:correct,d:st.curDiff}};
+    let bandStreak=correct?st.bandStreak+1:0;
+    let curDiff=correct?Math.min(3,st.curDiff+1):Math.max(1,st.curDiff-1);
+    let next=st.i+1; const band=skill.level;
+    // atalho: em fund/med, 2 acertos seguidos "pula" o resto da banda
+    if(band!=='sup' && bandStreak>=2){ while(next<CURR.length && CURR[next].level===band){ results[CURR[next].id]={ok:true,d:st.curDiff,skip:true}; next++; } }
+    if(next>=CURR.length){ app.applyDiagnostic(results); return; }
+    if(CURR[next].level!==band){ curDiff=2; bandStreak=0; }
+    setSt({i:next,curDiff,bandStreak,results});
+  };
+
+  const answered=Object.keys(st.results).length;
+  return (<div className="max-w-xl mx-auto px-5 pt-6 pb-24">
+    <div className="mb-4"><div className="flex justify-between text-xs text-slate-500 mb-1"><span>Teste de nível adaptativo</span><span>{answered} respondidas</span></div><Bar value={(st.i/CURR.length)*100}/></div>
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{LEVEL_LABEL[skill.level]}</p><DiffChip d={st.curDiff}/></div>
+      <Exercise key={st.i} mode="diag" adaptive={false} item={{...item, hint:item.hint||'Se não lembrar, tudo bem — entra na sua trilha.'}} onDone={answer}/>
+    </div>
+    <p className="text-center text-xs text-slate-400 mt-4">A dificuldade sobe quando você acerta e desce quando erra — assim achamos seu nível exato. Acertos você pula (voltam em revisão).</p>
+  </div>);
+}
+
+/* ============================ Motor adaptativo de exercícios ============================ */
+function AdaptiveExercises({skill, startDiff, target, escalate, reviewMode, onCorrect, onFinish}){
+  const [diff,setDiff]=useState(startDiff||1);
+  const [used,setUsed]=useState([]);
+  const [cur,setCur]=useState(()=>pickIdx(skill.pool, startDiff||1, []));
+  const [correctCount,setCorrectCount]=useState(0);
+  const [bestDiff,setBestDiff]=useState(0);
+  const [cStreak,setCStreak]=useState(0); const [wStreak,setWStreak]=useState(0);
+  const [flash,setFlash]=useState(null);
+  const needed=Math.min(target, skill.pool.length);
+  const item=skill.pool[cur];
+  const register = (wStreak>=1 || diff===1) ? 'simples' : (diff===3 ? 'desafio' : 'padrao');
+
+  const handle=(correct)=>{
+    const nUsed=[...used,cur];
+    let nCorrect=correctCount, nBest=bestDiff, nC=cStreak, nW=wStreak, nDiff=diff, fl=null;
+    if(correct){ onCorrect(); nCorrect++; nBest=Math.max(nBest,item.d); nC++; nW=0; if(escalate && nC>=2 && nDiff<3){ nDiff++; nC=0; fl='up'; } }
+    else { nW++; nC=0; if(nDiff>1){ nDiff--; if(escalate) fl='down'; } }
+    if(nCorrect>=needed){ onFinish(nBest||1); return; }
+    const nextIdx=pickIdx(skill.pool, nDiff, nUsed);
+    if(nextIdx==null){ onFinish(nBest||1); return; }
+    setUsed(nUsed); setCorrectCount(nCorrect); setBestDiff(nBest); setCStreak(nC); setWStreak(nW); setDiff(nDiff); setCur(nextIdx); setFlash(fl);
+    if(fl) setTimeout(()=>setFlash(null),1400);
+  };
+
+  return (<div>
+    <div className="flex justify-between items-center text-xs text-slate-500 mb-2">
+      <span>{reviewMode?'Revisão':'Progresso'}: {correctCount}/{needed} ✓</span>
+      <DiffChip d={item.d}/>
+    </div>
+    <Bar value={(correctCount/needed)*100} className="mb-3"/>
+    {flash==='up' && <div className="mb-3 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg p-2.5 pop">🔥 Mandou bem! Subindo a dificuldade.</div>}
+    {flash==='down' && <div className="mb-3 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg p-2.5">🧩 Vamos com calma — voltando um nível para reforçar.</div>}
+    {register==='simples' && !flash && <div className="mb-3 text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5">🧩 Modo passo a passo: leia a dica e vá com calma, sem pressa.</div>}
+    {register==='desafio' && !flash && <div className="mb-3 text-xs text-red-700 bg-red-50 rounded-lg p-2.5">🔥 Modo desafio ativado!</div>}
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+      <Exercise key={cur+'-'+used.length} mode="lesson" adaptive={register==='simples'} item={item} onDone={handle}/>
+    </div>
+  </div>);
+}
+
+/* ============================ Telas ============================ */
+function Onboarding({app}){ const [name,setName]=useState('');
+  return (<div className="max-w-xl mx-auto px-5 pt-10 pb-24 text-center fade-in">
+    <div className="text-6xl mb-4">📐</div><h1 className="text-2xl font-bold text-slate-800">Trilha de Cálculo</h1>
+    <p className="text-slate-500 mt-2 mb-8">Do fundamental ao Cálculo I. Descubra suas lacunas e siga uma trilha feita pra você — com dificuldade adaptativa e revisões inteligentes.</p>
+    <input value={name} onChange={e=>setName(e.target.value)} placeholder="Como podemos te chamar?" className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-400 outline-none text-center mb-3"/>
+    <button disabled={!name.trim()} onClick={()=>app.setName(name.trim())} className="w-full bg-teal-600 disabled:opacity-40 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Começar</button>
+    <p className="text-xs text-slate-400 mt-6">Seu progresso fica salvo só neste aparelho.</p></div>); }
+
+function SkillCard({skill, st, onOpen}){ const locked=!st||st.status==='locked'; const mastered=st?.status==='mastered';
+  return (<button disabled={locked} onClick={onOpen} className={"w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition min-h-[64px] "+(locked?'bg-slate-50 border-slate-100 opacity-60':mastered?'bg-teal-50 border-teal-200 active:scale-[.99]':'bg-white border-slate-200 shadow-sm active:scale-[.99]')}>
+    <div className={"w-11 h-11 shrink-0 rounded-xl grid place-items-center text-xl "+(mastered?'bg-teal-500 text-white':locked?'bg-slate-200':'bg-teal-100')}>{locked?'🔒':mastered?'✓':skill.icon}</div>
+    <div className="flex-1 min-w-0"><div className="font-semibold text-slate-800 text-[15px] truncate">{skill.title}</div><div className="text-xs text-slate-500">{skill.method}</div></div>
+    {mastered && <span className="text-xs text-teal-600 font-semibold">Dominado</span>}
+    {st?.status==='available' && <span className="text-xs text-teal-600 font-semibold">Começar →</span>}</button>); }
+
+function Trilha({app, openSkill}){ const {skills}=app.state; const byMod=MODULES.map(m=>({mod:m,items:CURR.filter(s=>s.mod===m)})); const total=CURR.length; const done=Object.values(skills).filter(x=>x.status==='mastered').length;
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
+    <div className="bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 mb-5"><div className="text-sm opacity-90">Progresso da trilha</div><div className="text-3xl font-bold my-1">{done}/{total}</div><Bar value={(done/total)*100} className="bg-teal-700/40 mt-2"/><div className="text-xs opacity-90 mt-2">Meta: dominar Limite, Derivada e Integral 🎯</div></div>
+    {byMod.map(({mod,items})=>(<div key={mod} className="mb-6"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 px-1">{mod}</h3><div className="grid gap-2">{items.map(s=><SkillCard key={s.id} skill={s} st={skills[s.id]} onOpen={()=>openSkill(s.id)}/>)}</div></div>))}
+  </div>); }
+
+function Lesson({app, skillId, onDone, reviewMode}){
+  const skill=CURR.find(s=>s.id===skillId); const [tab,setTab]=useState(reviewMode?'ex':'theory');
+  const skState=app.state.skills[skillId];
+  const startDiff = reviewMode ? (skState?.lvl||2) : (skState?.status==='mastered' ? (skState?.lvl||1) : 1);
+  const onCorrect=()=>app.addXp(reviewMode?15:10, (reviewMode?'Revisão: ':'Exercício: ')+skill.title);
+  const finish=(bestDiff)=>{ if(reviewMode){ app.completeReview(skillId); } else { const score=bestDiff>=3?100:bestDiff>=2?85:70; app.masterSkill(skillId,score,bestDiff); } onDone(true); };
+
+  return (<div className="max-w-xl mx-auto px-4 pt-3 pb-28">
+    <button onClick={()=>onDone(false)} className="text-slate-500 text-sm mb-2">← Voltar</button>
+    <div className="flex items-center gap-2 mb-1"><span className="text-2xl">{skill.icon}</span><h2 className="text-xl font-bold text-slate-800">{skill.title}</h2></div>
+    <p className="text-xs text-slate-500 mb-4">{reviewMode?'🔁 Revisão espaçada — reforce o que já aprendeu':'Metodologia: '+skill.method}</p>
+
+    {!reviewMode && (<div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
+      <button onClick={()=>setTab('theory')} className={"flex-1 py-2 rounded-lg text-sm font-medium "+(tab==='theory'?'bg-white shadow-sm text-teal-700':'text-slate-500')}>📖 Aula</button>
+      <button onClick={()=>setTab('ex')} className={"flex-1 py-2 rounded-lg text-sm font-medium "+(tab==='ex'?'bg-white shadow-sm text-teal-700':'text-slate-500')}>✏️ Exercícios</button></div>)}
+
+    {tab==='theory' ? (<div className="fade-in">
+      <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">{skill.theory.map((b,i)=>{
+        if(b.t==='p') return <p key={i} className="text-slate-700 leading-relaxed mb-3">{b.c}</p>;
+        if(b.t==='f') return <div key={i} className="bg-slate-50 rounded-lg py-2 px-3 mb-3"><M tex={b.c} block/></div>;
+        if(b.t==='tip') return <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-amber-800 text-sm">💡 {b.c}</div>;
+        if(b.t==='met') return <div key={i} className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5 mb-3">🎓 {b.c}</div>; return null; })}</div>
+      {skill.examples?.length>0 && (<div className="mt-4"><h4 className="text-sm font-bold text-slate-600 mb-2 px-1">Exemplos resolvidos</h4>{skill.examples.map((ex,i)=>(<div key={i} className="bg-white rounded-xl p-4 border border-slate-100 mb-2"><M tex={ex.q} block/><div className="mt-2 space-y-1">{ex.steps.map((s,j)=><div key={j} className="text-sm text-slate-600 flex gap-2"><span className="text-teal-500">{j+1}.</span><M tex={s}/></div>)}</div></div>))}</div>)}
+      <a href={"https://www.symbolab.com/solver/step-by-step/"+encodeURIComponent(skill.title)} target="_blank" rel="noopener" className="block text-center text-sm text-teal-600 mt-4 underline">🔎 Ver mais exemplos no Symbolab</a>
+      <button onClick={()=>setTab('ex')} className="w-full mt-4 bg-teal-600 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Praticar exercícios →</button>
+    </div>) : (
+      <AdaptiveExercises skill={skill} startDiff={startDiff} target={reviewMode?2:3} escalate={!reviewMode} reviewMode={reviewMode} onCorrect={onCorrect} onFinish={finish}/>
+    )}
+  </div>); }
+
+function Home({app, openSkill, startReview, goTrilha}){ const {user}=app.state; const due=app.dueReviews; const nextSkill=CURR.find(s=>app.state.skills[s.id]?.status==='available'); const hour=new Date().getHours(); const greet=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
+    <div className="mb-5"><p className="text-slate-500 text-sm">{greet},</p><h1 className="text-2xl font-bold text-slate-800">{user.name} 👋</h1></div>
+    <div className="grid grid-cols-2 gap-3 mb-5">
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 text-center"><div className="text-3xl">🔥</div><div className="text-2xl font-bold text-slate-800">{user.streak}</div><div className="text-xs text-slate-500">dias seguidos</div></div>
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 text-center"><div className="text-3xl">{levelOf(user.xp).emoji}</div><div className="text-lg font-bold text-slate-800">{levelOf(user.xp).name}</div><div className="text-xs text-slate-500">{user.xp} XP</div></div></div>
+    {due.length>0 && (<div className="mb-5"><h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">🔁 Revisões de hoje <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full">{due.length}</span></h3><div className="grid gap-2">{due.map(r=>{ const sk=CURR.find(s=>s.id===r.skillId); const label=r.stage===0?'no mesmo dia':r.stage===1?'1 semana depois':'1 mês depois';
+      return (<button key={r.skillId} onClick={()=>startReview(r.skillId)} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-orange-50 border border-orange-200 text-left active:scale-[.99]"><div className="w-10 h-10 rounded-xl bg-orange-100 grid place-items-center text-lg">{sk.icon}</div><div className="flex-1"><div className="font-semibold text-slate-800 text-sm">{sk.title}</div><div className="text-xs text-orange-600">Revisão {label}</div></div><span className="text-orange-500 text-sm font-semibold">+15 XP</span></button>); })}</div></div>)}
+    <h3 className="text-sm font-bold text-slate-700 mb-2">Continuar aprendendo</h3>
+    {nextSkill ? (<button onClick={()=>openSkill(nextSkill.id)} className="w-full bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 text-left active:scale-[.99]"><div className="text-xs opacity-90 mb-1">{nextSkill.mod}</div><div className="flex items-center gap-2"><span className="text-2xl">{nextSkill.icon}</span><span className="text-lg font-bold">{nextSkill.title}</span></div><div className="mt-3 inline-block bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">Iniciar aula →</div></button>) : (<div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 text-center"><div className="text-3xl mb-1">🏆</div><p className="font-semibold text-teal-800">Você concluiu toda a trilha!</p><p className="text-sm text-teal-600 mt-1">Continue nas revisões para fixar tudo.</p></div>)}
+    <button onClick={goTrilha} className="w-full mt-3 text-teal-600 font-medium text-sm py-2">Ver trilha completa →</button>
+  </div>); }
+
+function Profile({app}){ const {user}=app.state; const done=Object.values(app.state.skills).filter(x=>x.status==='mastered').length; const upcoming=[...app.state.reviews].sort((a,b)=>a.due-b.due).slice(0,6);
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
+    <div className="text-center mb-6"><div className="text-5xl">{levelOf(user.xp).emoji}</div><h2 className="text-xl font-bold text-slate-800 mt-1">{user.name}</h2><p className="text-slate-500 text-sm">{levelOf(user.xp).name} · {user.xp} XP</p></div>
+    <div className="grid grid-cols-3 gap-3 mb-6 text-center"><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">🔥{user.streak}</div><div className="text-xs text-slate-500">streak</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{done}</div><div className="text-xs text-slate-500">dominados</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{app.state.reviews.length}</div><div className="text-xs text-slate-500">revisões</div></div></div>
+    <h3 className="text-sm font-bold text-slate-700 mb-2">🗓️ Próximas revisões</h3>
+    <div className="grid gap-2 mb-6">{upcoming.length===0 && <p className="text-sm text-slate-400">Nenhuma revisão agendada ainda.</p>}{upcoming.map((r,i)=>{const sk=CURR.find(s=>s.id===r.skillId); const t=app.now(); return <div key={i} className="flex items-center gap-2 bg-white rounded-xl p-3 border border-slate-100 text-sm"><span>{sk.icon}</span><span className="flex-1">{sk.title}</span><span className={r.due<=t?'text-orange-600 font-semibold':'text-slate-400'}>{r.due<=t?'hoje':fmtDate(r.due)}</span></div>;})}</div>
+    <div className="bg-slate-100 rounded-xl p-4"><p className="text-xs text-slate-500 mb-2">🧪 Demonstração — avance o tempo para ver as revisões espaçadas (D+7 e D+30):</p><div className="flex gap-2"><button onClick={()=>app.timeTravel(1)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+1 dia</button><button onClick={()=>app.timeTravel(7)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+7 dias</button><button onClick={()=>app.timeTravel(30)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+30 dias</button></div><button onClick={()=>{if(confirm('Zerar todo o progresso?'))app.reset();}} className="w-full mt-3 text-red-500 text-sm py-2">Reiniciar tudo</button></div>
+  </div>); }
+
+function TabBar({tab, setTab, dueCount}){ const tabs=[['home','🏠','Início'],['trilha','🗺️','Trilha'],['profile','👤','Perfil']];
+  return (<div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 safe-b z-20"><div className="max-w-xl mx-auto flex">{tabs.map(([id,ic,label])=>(<button key={id} onClick={()=>setTab(id)} className={"flex-1 py-2.5 flex flex-col items-center gap-0.5 relative "+(tab===id?'text-teal-600':'text-slate-400')}><span className="text-xl">{ic}</span><span className="text-[11px] font-medium">{label}</span>{id==='home' && dueCount>0 && <span className="absolute top-1 right-1/3 bg-orange-500 text-white text-[10px] w-4 h-4 grid place-items-center rounded-full">{dueCount}</span>}</button>))}</div></div>); }
+
+/* ============================ App ============================ */
+function App(){ const app=useApp(); const [tab,setTab]=useState('home'); const [lesson,setLesson]=useState(null); const [celebrate,setCelebrate]=useState(false);
+  if(!app.state.user.name) return <Onboarding app={app}/>;
+  if(!app.state.user.diagnosticDone) return <><TopBar app={app}/><Diagnostic app={app}/></>;
+  const openSkill=(id)=>setLesson({skillId:id,review:false}); const startReview=(id)=>setLesson({skillId:id,review:true});
+  const closeLesson=(completed)=>{ setLesson(null); if(completed){ setCelebrate(true); setTimeout(()=>setCelebrate(false),1500);} };
+  return (<div className="min-h-screen"><TopBar app={app}/>
+    {lesson ? (<Lesson app={app} skillId={lesson.skillId} reviewMode={lesson.review} onDone={closeLesson}/>) : (<>
+      {tab==='home' && <Home app={app} openSkill={openSkill} startReview={startReview} goTrilha={()=>setTab('trilha')}/>}
+      {tab==='trilha' && <Trilha app={app} openSkill={openSkill}/>}
+      {tab==='profile' && <Profile app={app}/>}</>)}
+    {!lesson && <TabBar tab={tab} setTab={setTab} dueCount={app.dueReviews.length}/>}
+    {celebrate && (<div className="fixed inset-0 z-50 grid place-items-center bg-black/30 pointer-events-none"><div className="bg-white rounded-2xl px-8 py-6 text-center pop"><div className="text-5xl">🎉</div><p className="font-bold text-slate-800 mt-2">Muito bem!</p><p className="text-sm text-slate-500">Conteúdo concluído e revisões agendadas.</p></div></div>)}
+  </div>); }
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<!-- Bootstrap clássico: compila o JSX com runtime 'classic' (React.createElement, sem imports ESM) -->
+<script>
+(function boot(){
+  if (typeof Babel === 'undefined' || typeof React === 'undefined' || typeof ReactDOM === 'undefined') { return setTimeout(boot, 40); }
+  try {
+    var src = document.getElementById('app-src').textContent;
+    var out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
+    (0, eval)(out);
+  } catch (e) {
+    document.getElementById('root').innerHTML = '<pre style="padding:16px;color:#b91c1c;white-space:pre-wrap;font:13px monospace">Erro ao iniciar:\n' + (e && e.stack ? e.stack : e) + '</pre>';
+    console.error(e);
+  }
+})();
+</script>
+
+<!-- Registra o service worker (habilita instalação como app + offline). Ignora em file:// -->
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW falhou:', e); });
+  });
+}
+</script>
+</body>
+</html>
