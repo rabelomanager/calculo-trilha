@@ -39,6 +39,12 @@
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
   .safe-b { padding-bottom: env(safe-area-inset-bottom); }
+  /* flashcard flip */
+  .flip { perspective: 1000px; }
+  .flip-inner { transition: transform .5s; transform-style: preserve-3d; position:relative; }
+  .flip.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .flip-back { position:absolute; inset:0; transform: rotateY(180deg); }
 </style>
 </head>
 <body>
@@ -52,7 +58,13 @@ const DAY = 86400000;
 const todayKey = (offset=0) => { const d = new Date(Date.now() + offset*DAY); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
 const fmtDate = (ts) => new Date(ts).toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
 const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
-const hasTex = (s)=> typeof s==='string' && /\\|\^|_|\{|\\frac|\\lim|\\int/.test(s);
+const hasTex = (s)=> typeof s==='string' && /\\|\^|_|\{|\\frac|\\lim|\\int|\\sqrt/.test(s);
+// aleatórios (para geradores)
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const rnz=(a,b)=>{ let x=0; while(x===0) x=ri(a,b); return x; };
+const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+const sgn=(n)=> (n>=0?`+ ${n}`:`- ${-n}`);
+const shuffle=(arr)=>{ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
 function M({ tex, block }) {
   const ref = useRef(null);
@@ -62,10 +74,8 @@ function M({ tex, block }) {
   }, [tex, block]);
   return block ? <div className="my-2 overflow-x-auto text-center" ref={ref}>{tex}</div> : <span ref={ref}>{tex}</span>;
 }
-// renderiza string que pode ter LaTeX ou texto puro
 function T({s}){ return hasTex(s) ? <M tex={s}/> : <span>{s}</span>; }
 
-/* dificuldade */
 const DIFF = {
   1:{n:'Fácil', emo:'🟢', cls:'text-green-700 bg-green-50 border-green-200'},
   2:{n:'Médio', emo:'🟡', cls:'text-amber-700 bg-amber-50 border-amber-200'},
@@ -73,269 +83,367 @@ const DIFF = {
 };
 
 /* ============================ CONTEÚDO ============================
-   Cada skill: teoria + exemplos + POOL de exercícios graduados por dificuldade (d:1|2|3).
-   Estilo/notação alinhados a Stewart (Vol I, 7ed) e Guidorizzi (Vol 1).
+   Blocos de teoria: p, f(fórmula), met(metodologia), tip, err(erro comum), why(por que importa)
+   Exercícios (pool graduado por d:1|2|3): tipos mc, num, tf, err(ache o passo errado), order(ordene)
+   gen: geradores parametrizados -> prática infinita
+   cards: flashcards [frente, verso]
 ================================================================== */
-const P=(t)=>({t:'p',c:t}); const F=(t)=>({t:'f',c:t}); const TIP=(t)=>({t:'tip',c:t}); const MET=(t)=>({t:'met',c:t});
-// helpers de exercício
+const P=(t)=>({t:'p',c:t}); const F=(t)=>({t:'f',c:t}); const TIP=(t)=>({t:'tip',c:t});
+const MET=(t)=>({t:'met',c:t}); const ERR=(t)=>({t:'err',c:t}); const WHY=(t)=>({t:'why',c:t});
 const mc=(d,q,options,a,hint,sol)=>({d,type:'mc',q,options,a,hint,sol,tex:true});
 const nu=(d,q,a,tol,hint,sol)=>({d,type:'num',q,a,tol:tol||0.001,hint,sol});
-// versões com fonte (exercícios dos livros): src = 'Stewart' | 'Guidorizzi'
 const mcS=(d,q,options,a,hint,sol,src)=>({d,type:'mc',q,options,a,hint,sol,tex:true,src});
 const nuS=(d,q,a,tol,hint,sol,src)=>({d,type:'num',q,a,tol:tol||0.001,hint,sol,src});
+const tf=(d,q,a,hint,sol)=>({d,type:'tf',q,a,hint,sol});                    // a: true/false
+const er=(d,q,steps,bad,hint,sol)=>({d,type:'err',q,steps,a:bad,hint,sol}); // bad: índice do passo errado
+const od=(d,q,steps,hint)=>({d,type:'order',q,steps,hint});                 // steps na ordem correta
+
+/* ---- geradores parametrizados (prática infinita) ---- */
+function genFrac(){ const b=pick([2,3,4,5]), d2=pick([2,3,4,6]); const a=ri(1,b-1), c=ri(1,d2-1); const val=a/b+c/d2;
+  return {d:2,type:'num',q:`Calcule \\frac{${a}}{${b}}+\\frac{${c}}{${d2}}. (decimal, 2 casas)`,a:Math.round(val*100)/100,tol:0.02,hint:'Denominador comum e some os numeradores.',sol:`= ${val.toFixed(3)}`,gen:true}; }
+function genPot(){ const base=pick([2,3,5]), m=ri(2,4), n=ri(1,2); const val=Math.pow(base,m+n);
+  return {d:2,type:'num',q:`Calcule ${base}^{${m}}\\cdot ${base}^{${n}}.`,a:val,tol:0.5,hint:'Mesma base: some os expoentes.',sol:`${base}^{${m+n}} = ${val}.`,gen:true}; }
+function genEq1(){ const a=rnz(2,6), x=ri(-6,6), b=ri(-9,9); const c=a*x+b;
+  return {d:2,type:'num',q:`Resolva ${a}x ${sgn(b)} = ${c}. x = ?`,a:x,tol:0.001,hint:'Isole x: passe o termo livre e divida.',sol:`${a}x = ${c-b} ⇒ x = ${x}.`,gen:true}; }
+function genAfim(){ const a=rnz(-4,4), b=ri(-6,6), k=ri(-4,4); const val=a*k+b;
+  return {d:2,type:'num',q:`Sendo f(x)=${a}x ${sgn(b)}, calcule f(${k}).`,a:val,tol:0.001,hint:'Substitua x pelo valor.',sol:`${a}·(${k}) ${sgn(b)} = ${val}.`,gen:true}; }
+function genQuad(){ let r1=rnz(-5,5), r2=rnz(-5,5); const b=-(r1+r2), c=r1*r2; const mode=pick(['soma','produto']); const a= mode==='soma'? r1+r2 : r1*r2;
+  return {d:3,type:'num',q:`Em x^2 ${sgn(b)}x ${sgn(c)}=0, qual a ${mode} das raízes?`,a,tol:0.001,hint:mode==='soma'?'Soma das raízes = -b.':'Produto das raízes = c.',sol:`Raízes ${r1} e ${r2}: ${mode} = ${a}.`,gen:true}; }
+function genLim(){ let r=ri(-4,4), s=ri(-4,4); while(s===r) s=ri(-4,4); const b=-(r+s), c=r*s; const a=r-s;
+  return {d:2,type:'num',q:`Calcule \\lim_{x\\to ${r}}\\frac{x^2 ${sgn(b)}x ${sgn(c)}}{x ${sgn(-r)}}.`,a,tol:0.001,hint:`Fatore o numerador e cancele (x ${sgn(-r)}).`,sol:`(x ${sgn(-r)})(x ${sgn(-s)}) / (x ${sgn(-r)}) → x ${sgn(-s)} → ${a}.`,gen:true}; }
+function genDer(){ const a=rnz(1,4), n=ri(2,4), k=ri(1,4); const coef=a*n; const val=coef*Math.pow(k,n-1);
+  return {d:2,type:'num',q:`Sendo f(x)=${a}x^{${n}}, calcule f'(${k}).`,a:val,tol:0.001,hint:`Regra da potência: f'(x)=${a}·${n}x^{${n-1}}.`,sol:`f'(x)=${coef}x^{${n-1}} ⇒ f'(${k})=${val}.`,gen:true}; }
+function genInt(){ const a=rnz(1,4), n=ri(1,3), p=ri(0,2), q=p+ri(1,2); const F=(t)=>a*Math.pow(t,n+1)/(n+1); const val=F(q)-F(p);
+  return {d:3,type:'num',q:`Calcule \\int_{${p}}^{${q}} ${a}x^{${n}}\\,dx. (decimal, 2 casas)`,a:Math.round(val*100)/100,tol:0.05,hint:`Antiderivada: \\frac{${a}x^{${n+1}}}{${n+1}}.`,sol:`F(x)=${a}x^{${n+1}}/${n+1}; F(${q})-F(${p}) ≈ ${val.toFixed(2)}.`,gen:true}; }
 
 const CURR = [
-  /* -------- FUNDAMENTAL -------- */
-  { id:'frac', mod:'Fundamentos', level:'fund', title:'Frações e operações', icon:'➗', method:'Visual + regra prática',
+  /* ---------------- FUNDAMENTAL ---------------- */
+  { id:'frac', mod:'Fundamentos', level:'fund', title:'Frações e operações', icon:'➗', method:'Visual + regra prática', gen:[genFrac],
     theory:[ MET('Começamos com a imagem (a pizza) e só depois formalizamos a regra.'),
-      P('a/b são "a partes de um todo dividido em b". Somar exige o mesmo denominador.'),
+      P('a/b são "a partes de um todo dividido em b". Somar exige o mesmo denominador (mesmo tamanho de fatia).'),
       F('\\frac{a}{b}+\\frac{c}{d}=\\frac{ad+bc}{bd}'),
-      TIP('Multiplicar: numerador×numerador, denominador×denominador. Dividir = multiplicar pelo inverso.') ],
-    examples:[ {q:'\\frac{1}{2}+\\frac{1}{3}', steps:['Denominador comum = 6','\\frac{3}{6}+\\frac{2}{6}=\\frac{5}{6}']},
+      P('Multiplicar: numerador×numerador, denominador×denominador. Dividir = multiplicar pelo inverso.'),
+      ERR('Erro comum: somar numeradores E denominadores (1/2 + 1/3 ≠ 2/5). Só se soma numerador quando o denominador é igual!'),
+      WHY('Frações são a base de tudo: derivadas e integrais são cheias de quocientes.') ],
+    examples:[ {q:'\\frac{1}{2}+\\frac{1}{3}', steps:['Denominador comum = 6','\\frac{3}{6}+\\frac{2}{6}','=\\frac{5}{6}']},
       {q:'\\frac{2}{3}\\div\\frac{4}{5}', steps:['Inverte a segunda: \\frac{2}{3}\\times\\frac{5}{4}','=\\frac{10}{12}=\\frac{5}{6}']} ],
+    cards:[['\\frac{a}{b}+\\frac{c}{d}','\\frac{ad+bc}{bd}'],['Dividir frações','Multiplicar pelo inverso da 2ª'],['\\frac{2}{4} simplificado','\\frac{1}{2}']],
     pool:[
       mc(1,'Quanto é \\frac{1}{4}+\\frac{1}{2}?',['\\frac{2}{6}','\\frac{3}{4}','\\frac{1}{6}','\\frac{2}{3}'],1,'Deixe as duas com denominador 4.','1/4 + 2/4 = 3/4.'),
       nu(1,'Quanto é \\frac{2}{3}\\times\\frac{3}{4}? (decimal)',0.5,0.01,'Multiplique reto e simplifique.','6/12 = 1/2 = 0,5.'),
-      nu(2,'Quanto é \\frac{1}{2}+\\frac{1}{3}? (decimal)',0.6667,0.01,'Denominador comum 6.','3/6+2/6 = 5/6 ≈ 0,833.'),
-      mc(2,'Quanto é \\frac{3}{5}\\div\\frac{4}{5}?',['\\frac{12}{25}','\\frac{3}{4}','\\frac{4}{3}','1'],1,'Inverta a segunda e multiplique.','(3/5)(5/4)=15/20=3/4.'),
-      nu(3,'Quanto é \\frac{1}{2}+\\frac{1}{3}-\\frac{1}{6}? (decimal)',0.6667,0.01,'Tudo com denominador 6.','3/6+2/6-1/6 = 4/6 = 2/3.'),
+      tf(1,'\\frac{1}{2}+\\frac{1}{3}=\\frac{2}{5}. Verdadeiro?',false,'Não se soma denominador.','Falso: é 5/6.'),
+      nu(2,'Quanto é \\frac{1}{2}+\\frac{1}{3}? (decimal)',0.6667,0.01,'Denominador comum 6.','5/6 ≈ 0,833.'),
+      mc(2,'Quanto é \\frac{3}{5}\\div\\frac{4}{5}?',['\\frac{12}{25}','\\frac{3}{4}','\\frac{4}{3}','1'],1,'Inverta a segunda.','(3/5)(5/4)=3/4.'),
+      nu(3,'Quanto é \\frac{1}{2}+\\frac{1}{3}-\\frac{1}{6}? (decimal)',0.6667,0.01,'Tudo com denominador 6.','3/6+2/6-1/6 = 2/3.'),
     ]},
-  { id:'pot', mod:'Fundamentos', level:'fund', title:'Potências e raízes', icon:'⚡', method:'Padrões e regularidades',
+  { id:'pot', mod:'Fundamentos', level:'fund', title:'Potências e raízes', icon:'⚡', method:'Padrões e regularidades', gen:[genPot],
     theory:[ MET('Descobrir a regra observando o padrão, em vez de decorar.'),
       P('Potência é multiplicação repetida; as propriedades saem disso:'),
       F('a^m\\cdot a^n=a^{m+n},\\quad \\frac{a^m}{a^n}=a^{m-n},\\quad (a^m)^n=a^{mn}'),
       F('a^{-n}=\\frac{1}{a^n},\\qquad a^{1/n}=\\sqrt[n]{a}'),
-      TIP('Expoente negativo NÃO deixa o número negativo — vira fração.') ],
+      ERR('Erro comum: 2^{-2} = -4. Errado! Expoente negativo vira fração: 2^{-2}=1/4. Não muda o sinal.'),
+      WHY('Expoentes fracionários (raízes como potências) são o que deixa a regra da potência da derivada funcionar para √x.') ],
     examples:[ {q:'2^3\\cdot 2^4', steps:['Soma expoentes: 2^{7}','=128']}, {q:'9^{1/2}', steps:['Expoente 1/2 é raiz','=\\sqrt9=3']} ],
+    cards:[['a^m\\cdot a^n','a^{m+n}'],['a^{-n}','\\frac{1}{a^n}'],['a^{1/2}','\\sqrt{a}']],
     pool:[
-      nu(1,'Quanto vale 2^{-2}? (decimal)',0.25,0.001,'Expoente negativo vira 1/2².','1/4 = 0,25.'),
-      mc(1,'Simplifique \\frac{x^5}{x^2}.',['x^{10}','x^{3}','x^{7}','x^{2/5}'],1,'Divisão de mesma base: subtraia expoentes.','x^{5-2}=x³.'),
+      nu(1,'Quanto vale 2^{-2}? (decimal)',0.25,0.001,'Vira 1/2².','1/4 = 0,25.'),
+      mc(1,'Simplifique \\frac{x^5}{x^2}.',['x^{10}','x^{3}','x^{7}','x^{2/5}'],1,'Subtraia expoentes.','x^{5-2}=x³.'),
       nu(2,'Quanto é 2^3\\cdot 2^2?',32,0.001,'Some os expoentes.','2⁵ = 32.'),
-      mc(2,'Simplifique (x^2)^3.',['x^5','x^6','x^8','x^9'],1,'Multiplique os expoentes.','x^{2·3}=x⁶.'),
-      nu(3,'Quanto é 9^{1/2}+8^{1/3}?',5,0.001,'Raiz quadrada de 9 e raiz cúbica de 8.','3 + 2 = 5.'),
+      mc(2,'Simplifique (x^2)^3.',['x^5','x^6','x^8','x^9'],1,'Multiplique os expoentes.','x⁶.'),
+      nu(3,'Quanto é 9^{1/2}+8^{1/3}?',5,0.001,'Raiz quadrada de 9 e cúbica de 8.','3 + 2 = 5.'),
     ]},
-  { id:'eq1', mod:'Fundamentos', level:'fund', title:'Equações do 1º grau', icon:'⚖️', method:'Balança (isolamento)',
-    theory:[ MET('Balança: o que faço de um lado, faço do outro.'),
-      P('Isolar a incógnita com operações inversas dos dois lados.'), F('ax+b=0 \\Rightarrow x=-\\frac{b}{a}') ],
-    examples:[ {q:'2x+6=0', steps:['-6: 2x=-6','÷2: x=-3']} ],
+  { id:'eq1', mod:'Fundamentos', level:'fund', title:'Equações do 1º grau', icon:'⚖️', method:'Balança (isolamento)', gen:[genEq1],
+    theory:[ MET('Balança: o que faço de um lado, faço do outro — a igualdade se mantém.'),
+      P('Isolar a incógnita com operações inversas dos dois lados.'), F('ax+b=0 \\Rightarrow x=-\\frac{b}{a}'),
+      ERR('Erro comum: ao passar um número para o outro lado, esquecer de trocar o sinal.'),
+      WHY('Isolar variável é o gesto que você repete em toda a matemática — inclusive ao resolver f\'(x)=0.') ],
+    examples:[ {q:'2x+6=0', steps:['-6 dos dois lados: 2x=-6','÷2: x=-3']} ],
+    cards:[['ax+b=0','x=-b/a'],['Passar somando p/ o outro lado','Vira subtraindo']],
     pool:[
       nu(1,'Resolva 3x-9=0. x = ?',3,0.001,'Passe o 9 e divida por 3.','3x=9 ⇒ x=3.'),
-      nu(1,'Resolva x+7=10. x = ?',3,0.001,'Subtraia 7 dos dois lados.','x=3.'),
-      nu(2,'Resolva 5x+2=17. x = ?',3,0.001,'Isole 5x primeiro.','5x=15 ⇒ x=3.'),
+      tf(1,'A solução de x+5=2 é x=-3. Verdadeiro?',true,'x=2-5.','Verdadeiro.'),
+      nu(2,'Resolva 5x+2=17. x = ?',3,0.001,'Isole 5x.','5x=15 ⇒ x=3.'),
       nu(2,'Resolva 2(x-1)=8. x = ?',5,0.001,'Divida por 2 ou distribua.','x-1=4 ⇒ x=5.'),
       nu(3,'Resolva 3x-5=2x+4. x = ?',9,0.001,'Junte os x de um lado.','x=9.'),
     ]},
 
-  /* -------- ENSINO MÉDIO -------- */
+  /* ---------------- ENSINO MÉDIO ---------------- */
   { id:'func', mod:'Ensino Médio', level:'med', title:'Funções: domínio e imagem', icon:'🔗', method:'Máquina de entrada/saída',
     theory:[ MET('Máquina: entra x, sai f(x). Uma entrada → uma única saída.'),
       P('Domínio = entradas permitidas; Imagem = saídas obtidas.'),
       F('f(x)=\\sqrt{x}\\Rightarrow \\text{Domínio}: x\\ge 0'),
-      TIP('Cuidado com o que "quebra": divisão por zero e raiz de negativo restringem o domínio.') ],
+      ERR('Pegadinha do domínio: o que "quebra" a função é divisão por zero e raiz de número negativo.'),
+      WHY('Limite e continuidade só fazem sentido quando você sabe onde a função existe.') ],
     examples:[ {q:'f(x)=\\frac{1}{x-2}', steps:['Denominador ≠ 0','Domínio: x\\ne 2']} ],
+    cards:[['Domínio de \\sqrt{x}','x \\ge 0'],['Domínio de \\frac{1}{x}','x \\ne 0']],
     pool:[
       nu(1,'Se f(x)=x^2+1, quanto é f(3)?',10,0.001,'Substitua x por 3.','9+1=10.'),
-      mc(1,'Domínio de f(x)=\\sqrt{x-3}?',['x\\le 3','x\\ge 3','x\\ne 3','todos os reais'],1,'Dentro da raiz ≥ 0.','x-3≥0 ⇒ x≥3.'),
-      mc(2,'Domínio de f(x)=\\frac{1}{x-2}?',['x\\ge 2','x\\ne 2','x\\le 2','x>0'],1,'Denominador não pode zerar.','x≠2.'),
+      mc(1,'Domínio de f(x)=\\sqrt{x-3}?',['x\\le 3','x\\ge 3','x\\ne 3','todos os reais'],1,'Dentro da raiz ≥ 0.','x≥3.'),
+      tf(2,'A função f(x)=1/x está definida em x=0. Verdadeiro?',false,'Divisão por zero.','Falso: x=0 não pode.'),
+      mc(2,'Domínio de f(x)=\\frac{1}{x-2}?',['x\\ge 2','x\\ne 2','x\\le 2','x>0'],1,'Denominador ≠ 0.','x≠2.'),
       nu(2,'Se f(x)=2x-1, para qual x temos f(x)=5?',3,0.001,'Resolva 2x-1=5.','x=3.'),
       mc(3,'Domínio de f(x)=\\frac{\\sqrt{x}}{x-1}?',['x\\ge 0','x\\ge 0,\\ x\\ne 1','x\\ne 1','x>1'],1,'Raiz pede x≥0 e denominador ≠0.','x≥0 e x≠1.'),
     ]},
-  { id:'afim', mod:'Ensino Médio', level:'med', title:'Função afim (1º grau)', icon:'📈', method:'Leitura de gráfico',
-    theory:[ MET('Ligar fórmula ↔ reta o tempo todo.'),
+  { id:'afim', mod:'Ensino Médio', level:'med', title:'Função afim (1º grau)', icon:'📈', method:'Leitura de gráfico', gen:[genAfim],
+    theory:[ MET('Ligar fórmula ↔ reta no gráfico o tempo todo.'),
       P('Reta f(x)=ax+b: a é a inclinação (taxa de variação); b corta o eixo y.'), F('f(x)=ax+b'),
-      TIP('Essa ideia de "taxa" volta forte na derivada!') ],
+      P('a>0 sobe, a<0 desce; |a| grande = reta mais íngreme.'),
+      ERR('Erro comum: confundir a (inclinação) com b (onde corta y). a é o "quanto sobe por passo".'),
+      WHY('A inclinação a é exatamente a ideia de derivada — só que aqui é constante.') ],
     examples:[ {q:'f(x)=2x+1', steps:['Inclinação 2, corta y em 1','+1 em x ⇒ +2 em y']} ],
+    cards:[['Coeficiente a em ax+b','inclinação / taxa de variação'],['Coeficiente b','onde a reta corta o eixo y']],
     pool:[
-      nu(1,'Na reta f(x)=3x-4, quanto vale f(2)?',2,0.001,'3·2 - 4.','6-4=2.'),
-      mc(1,'Em f(x)=-2x+5, a função é:',['crescente','decrescente','constante','nenhuma'],1,'Olhe o sinal de a.','a<0 ⇒ decrescente.'),
+      nu(1,'Na reta f(x)=3x-4, quanto vale f(2)?',2,0.001,'3·2 - 4.','2.'),
+      mc(1,'Em f(x)=-2x+5, a função é:',['crescente','decrescente','constante','nenhuma'],1,'Sinal de a.','a<0 ⇒ decrescente.'),
       nu(2,'A reta passa por (0,1) e (2,5). Qual a inclinação a?',2,0.001,'a = Δy/Δx.','(5-1)/(2-0)=2.'),
-      nu(2,'Em f(x)=2x+1, para qual x temos f(x)=0?',-0.5,0.01,'Resolva 2x+1=0.','x=-1/2.'),
-      nu(3,'A reta passa por (1,3) e (3,7). Quanto é f(5)?',11,0.001,'Ache a e b, depois f(5).','a=2, b=1 ⇒ f(5)=11.'),
+      od(2,'Ordene os passos para achar a inclinação entre (1,2) e (3,8):',['Δy = 8 - 2 = 6','Δx = 3 - 1 = 2','a = Δy/Δx = 6/2 = 3'],'Comece pela variação de y.'),
+      nu(3,'A reta passa por (1,3) e (3,7). Quanto é f(5)?',11,0.001,'Ache a e b.','a=2, b=1 ⇒ f(5)=11.'),
     ]},
-  { id:'quad', mod:'Ensino Médio', level:'med', title:'Função quadrática', icon:'⛰️', method:'Parábola + Bhaskara',
+  { id:'quad', mod:'Ensino Médio', level:'med', title:'Função quadrática', icon:'⛰️', method:'Parábola + Bhaskara', gen:[genQuad],
     theory:[ MET('Entender a forma (parábola) e as ferramentas (vértice, raízes).'),
       P('a>0: concavidade p/ cima (mínimo); a<0: p/ baixo (máximo).'),
       F('x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a},\\ \\Delta=b^2-4ac'), F('x_{v}=-\\frac{b}{2a}'),
-      TIP('O vértice é a antessala do máximo/mínimo por derivada.') ],
-    examples:[ {q:'x^2-5x+6=0', steps:['\\Delta=1','x=\\frac{5\\pm1}{2}\\Rightarrow 3 \\text{ ou } 2']} ],
+      ERR('Pegadinha do Δ: se Δ<0 não há raízes reais; se Δ=0 há uma raiz (dupla).'),
+      WHY('O vértice (máx/mín) é a antessala do que você fará com derivada em qualquer curva.') ],
+    examples:[ {q:'x^2-5x+6=0', steps:['\\Delta=25-24=1','x=\\frac{5\\pm1}{2}','x=3 \\text{ ou } 2']} ],
+    cards:[['Bhaskara','x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}'],['\\Delta','b^2-4ac'],['x do vértice','-\\frac{b}{2a}']],
     pool:[
-      nu(1,'Some as raízes de x^2-5x+6=0.',5,0.001,'As raízes são 2 e 3.','2+3=5.'),
+      nu(1,'Some as raízes de x^2-5x+6=0.',5,0.001,'Raízes 2 e 3.','2+3=5.'),
       nu(1,'Qual o x do vértice de f(x)=x^2-6x+8?',3,0.001,'x_v=-b/2a.','6/2=3.'),
-      nu(2,'Qual o produto das raízes de x^2-5x+6=0?',6,0.001,'Raízes 2 e 3.','2·3=6.'),
-      mc(2,'A parábola de f(x)=-x^2+2 tem concavidade para:',['cima','baixo','esquerda','direita'],1,'Olhe o sinal de a.','a<0 ⇒ para baixo.'),
-      nu(3,'Qual o valor mínimo de f(x)=x^2-6x+8?',-1,0.001,'Calcule f no vértice x=3.','f(3)=9-18+8=-1.'),
+      tf(2,'Se \\Delta<0, a equação do 2º grau não tem raízes reais. Verdadeiro?',true,'Raiz de negativo não é real.','Verdadeiro.'),
+      mc(2,'A parábola de f(x)=-x^2+2 tem concavidade para:',['cima','baixo','esquerda','direita'],1,'Sinal de a.','a<0 ⇒ para baixo.'),
+      nu(3,'Qual o valor mínimo de f(x)=x^2-6x+8?',-1,0.001,'Calcule f no vértice x=3.','f(3)=-1.'),
     ]},
   { id:'explog', mod:'Ensino Médio', level:'med', title:'Exponencial e logaritmo', icon:'🌱', method:'Crescimento e operação inversa',
     theory:[ MET('log é só a pergunta inversa da exponencial.'),
       P('Exponencial cresce/decai multiplicativamente; log responde "a que expoente elevo a base?".'),
       F('\\log_a b = x \\iff a^x = b'), F('\\ln e = 1,\\ \\log(ab)=\\log a+\\log b'),
-      TIP('O número e (~2,718) e ln aparecem sem parar em cálculo.') ],
-    examples:[ {q:'\\log_2 8', steps:['2^{?}=8','=3']} ],
+      ERR('Erro comum: \\log(a+b) NÃO é \\log a+\\log b. A regra da soma vale para o PRODUTO: \\log(ab).'),
+      WHY('e e ln aparecem sem parar em cálculo — a derivada de ln x é 1/x e a de e^x é ela mesma.') ],
+    examples:[ {q:'\\log_2 8', steps:['2^{?}=8','2^3=8','=3']} ],
+    cards:[['\\log_a b = x','a^x=b'],['\\log(ab)','\\log a+\\log b'],['\\ln e','1']],
     pool:[
-      nu(1,'Quanto é \\log_3 27?',3,0.001,'3 elevado a quê dá 27?','3³=27 ⇒ 3.'),
+      nu(1,'Quanto é \\log_3 27?',3,0.001,'3 elevado a quê dá 27?','3³ ⇒ 3.'),
       nu(1,'Quanto é \\log_{10} 1000?',3,0.001,'10³=1000.','3.'),
-      nu(2,'Quanto é \\log_2 32?',5,0.001,'2 elevado a quê dá 32?','2⁵=32 ⇒ 5.'),
-      mc(2,'\\log(a\\cdot b) é igual a:',['\\log a\\cdot\\log b','\\log a+\\log b','\\log a-\\log b','\\frac{\\log a}{\\log b}'],1,'Produto vira soma.','log a + log b.'),
+      tf(2,'\\log(a+b)=\\log a+\\log b. Verdadeiro?',false,'A regra é do produto.','Falso.'),
+      nu(2,'Quanto é \\log_2 32?',5,0.001,'2 elevado a quê dá 32?','2⁵ ⇒ 5.'),
       nu(3,'Quanto é \\log_2 8 + \\log_3 9?',5,0.001,'Calcule cada log.','3 + 2 = 5.'),
     ]},
   { id:'trig', mod:'Ensino Médio', level:'med', title:'Trigonometria essencial', icon:'📐', method:'Círculo trigonométrico',
     theory:[ MET('Ancorar tudo no círculo de raio 1 e nos ângulos notáveis.'),
       P('Triângulo retângulo: sen = oposto/hipotenusa; cos = adjacente/hipotenusa.'),
       F('\\sin^2\\theta+\\cos^2\\theta=1'), F('\\sin 30^\\circ=\\tfrac12,\\ \\cos 60^\\circ=\\tfrac12,\\ \\sin 90^\\circ=1'),
-      TIP('(sen x)\'=cos x — você vai amar isso na derivada.') ],
+      ERR('Erro comum: misturar graus e radianos. Em cálculo, use radianos (π = 180°).'),
+      WHY('(\\sin x)\'=\\cos x e (\\cos x)\'=-\\sin x — a trigonometria volta forte nas derivadas.') ],
     examples:[ {q:'\\cos 0^\\circ', steps:['Aponta para (1,0)','=1']} ],
+    cards:[['\\sin^2\\theta+\\cos^2\\theta','1'],['\\sin 30^\\circ','\\frac{1}{2}'],['180^\\circ em radianos','\\pi']],
     pool:[
       nu(1,'Quanto vale \\sin 90^\\circ?',1,0.001,'Topo do círculo.','1.'),
-      mc(1,'A identidade fundamental é:',['\\sin\\theta+\\cos\\theta=1','\\sin^2\\theta+\\cos^2\\theta=1','\\sin^2\\theta-\\cos^2\\theta=1','\\tan\\theta=1'],1,'Vem de Pitágoras no círculo.','sen²+cos²=1.'),
-      nu(2,'Quanto vale \\sin 30^\\circ? (decimal)',0.5,0.01,'Ângulo notável.','1/2 = 0,5.'),
+      mc(1,'A identidade fundamental é:',['\\sin\\theta+\\cos\\theta=1','\\sin^2\\theta+\\cos^2\\theta=1','\\sin^2\\theta-\\cos^2\\theta=1','\\tan\\theta=1'],1,'Vem de Pitágoras.','sen²+cos²=1.'),
+      nu(2,'Quanto vale \\sin 30^\\circ? (decimal)',0.5,0.01,'Ângulo notável.','0,5.'),
       mc(2,'Quanto vale \\cos 60^\\circ?',['1','\\frac{1}{2}','\\frac{\\sqrt3}{2}','0'],1,'Ângulo notável.','1/2.'),
-      nu(3,'Quanto é \\sin 30^\\circ + \\cos 60^\\circ? (decimal)',1,0.01,'Some os dois valores notáveis.','0,5 + 0,5 = 1.'),
+      nu(3,'Quanto é \\sin 30^\\circ + \\cos 60^\\circ? (decimal)',1,0.01,'Some os notáveis.','0,5+0,5=1.'),
     ]},
 
-  /* -------- CÁLCULO I -------- */
-  { id:'lim-int', mod:'Cálculo I — Limites', level:'sup', title:'Limite: noção intuitiva', icon:'🎯', method:'Chegar perto sem tocar',
+  /* ---------------- CÁLCULO I ---------------- */
+  { id:'lim-int', mod:'Cálculo I — Limites', level:'sup', title:'Limite: noção intuitiva', icon:'🎯', method:'Chegar perto sem tocar', gen:[genLim],
     theory:[ MET('Stewart: construir a intuição por tabelas de valores antes da conta.'),
       P('Limite: para onde f(x) se aproxima quando x→a, mesmo que f não exista em a.'), F('\\lim_{x\\to a} f(x)=L'),
-      P('Ex.: f(x)=\\frac{x^2-1}{x-1} não existe em x=1 (0/0), mas se aproxima de 2.'),
-      TIP('Limite é sobre a VIZINHANÇA de a, não sobre o valor em a.') ],
-    examples:[ {q:'\\lim_{x\\to 3}(2x+1)', steps:['Contínua: substitua','=7']},
-      {q:'\\lim_{x\\to 1}\\frac{x^2-1}{x-1}', steps:['\\frac{(x-1)(x+1)}{x-1}','\\lim(x+1)=2']} ],
+      P('Ex.: f(x)=\\frac{x^2-1}{x-1} não existe em x=1 (dá 0/0), mas se aproxima de 2.'),
+      ERR('Erro comum: achar que limite é "o valor da função em a". É o valor de CHEGADA na vizinhança de a.'),
+      WHY('Todo o cálculo (derivada e integral) é definido por limites — é a fundação.') ],
+    examples:[ {q:'\\lim_{x\\to 3}(2x+1)', steps:['Contínua: substitua','2·3+1=7']},
+      {q:'\\lim_{x\\to 1}\\frac{x^2-1}{x-1}', steps:['\\frac{(x-1)(x+1)}{x-1}','cancela (x-1)','\\lim(x+1)=2']} ],
+    cards:[['\\lim_{x\\to a}f(x)','valor de chegada de f perto de a'],['0/0','indeterminação: manipule a expressão']],
     pool:[
-      nu(1,'Calcule \\lim_{x\\to 2}(3x-4).',2,0.001,'É contínua: substitua x=2.','6-4=2.'),
+      nu(1,'Calcule \\lim_{x\\to 2}(3x-4).',2,0.001,'Contínua: substitua.','6-4=2.'),
       nu(1,'Calcule \\lim_{x\\to 3}(2x+1).',7,0.001,'Substitua x=3.','7.'),
-      nu(2,'Calcule \\lim_{x\\to 2}\\frac{x^2-4}{x-2}.',4,0.001,'Fatore x²-4=(x-2)(x+2).','lim(x+2)=4.'),
-      nu(2,'Calcule \\lim_{x\\to 1}\\frac{x^2-1}{x-1}.',2,0.001,'Fatore e cancele.','lim(x+1)=2.'),
+      tf(1,'\\lim_{x\\to 1}\\frac{x^2-1}{x-1}=2, mesmo a função não existindo em x=1. Verdadeiro?',true,'Limite olha a vizinhança.','Verdadeiro.'),
+      nu(2,'Calcule \\lim_{x\\to 2}\\frac{x^2-4}{x-2}.',4,0.001,'Fatore x²-4.','lim(x+2)=4.'),
+      er(2,'Ache o erro em \\lim_{x\\to 2}\\frac{x^2-4}{x-2}:',['Fatora: \\frac{(x-2)(x+2)}{x-2}','Cancela: x+2','Substitui: 2+2=6'],2,'Confira a última conta.','2+2=4, não 6. Erro no passo 3.'),
       nu(3,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'x²-9=(x-3)(x+3).','lim(x+3)=6.'),
-      nuS(2,'Calcule \\lim_{x\\to 2}\\frac{x^2+x-6}{x-2}.',5,0.001,'Fatore: x²+x-6=(x+3)(x-2).','(x+3)(x-2)/(x-2)=x+3 → 5.','Stewart'),
-      nuS(3,'Calcule \\lim_{x\\to 4}\\frac{\\sqrt{x}-2}{x-4}. (decimal)',0.25,0.01,'Racionalize multiplicando por \\sqrt{x}+2.','1/(√x+2) → 1/4 = 0,25.','Stewart'),
+      nuS(2,'Calcule \\lim_{x\\to 2}\\frac{x^2+x-6}{x-2}.',5,0.001,'Fatore: (x+3)(x-2).','x+3 → 5.','Stewart'),
+      nuS(3,'Calcule \\lim_{x\\to 4}\\frac{\\sqrt{x}-2}{x-4}. (decimal)',0.25,0.01,'Racionalize por \\sqrt{x}+2.','1/(√x+2) → 0,25.','Stewart'),
     ]},
-  { id:'lim-calc', mod:'Cálculo I — Limites', level:'sup', title:'Cálculo de limites e indeterminações', icon:'🧮', method:'Passo a passo + fatoração',
+  { id:'lim-calc', mod:'Cálculo I — Limites', level:'sup', title:'Cálculo de limites e indeterminações', icon:'🧮', method:'Passo a passo + fatoração', gen:[genLim],
     theory:[ MET('Guidorizzi: reconhecer o tipo de indeterminação e escolher a técnica.'),
       P('Limite da soma/produto/quociente = operação dos limites (denominador ≠ 0).'),
-      P('Em 0/0: fatoração, conjugado ou simplificação.'), F('\\lim_{x\\to 0}\\frac{\\sin x}{x}=1'),
-      TIP('0/0 e ∞/∞ são INDETERMINAÇÕES: um convite a manipular a expressão.') ],
-    examples:[ {q:'\\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}', steps:['Multiplica pelo conjugado','\\frac{1}{\\sqrt{x+1}+1}','=\\frac12']} ],
+      P('Em 0/0: fatoração, conjugado (racionalização) ou simplificação.'), F('\\lim_{x\\to 0}\\frac{\\sin x}{x}=1'),
+      ERR('Erro comum: parar em "0/0" achando que é o resultado. 0/0 é um convite a manipular, não uma resposta.'),
+      WHY('Saber quebrar indeterminações é o que permite calcular derivadas pela definição.') ],
+    examples:[ {q:'\\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}', steps:['Multiplica pelo conjugado','\\frac{1}{\\sqrt{x+1}+1}','substitui: \\frac12']} ],
+    cards:[['\\lim_{x\\to 0}\\frac{\\sin x}{x}','1'],['Técnica p/ raiz em 0/0','multiplicar pelo conjugado']],
     pool:[
-      nu(1,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'Fatore x²-9.','lim(x+3)=6.'),
-      nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(2x)}{x}.',2,0.001,'Escreva 2·sen(2x)/(2x).','=2·1=2.'),
+      nu(1,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'Fatore.','lim(x+3)=6.'),
+      nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(2x)}{x}.',2,0.001,'Escreva 2·sen(2x)/(2x).','=2.'),
       nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(3x)}{x}.',3,0.001,'Fator 3 fora.','=3.'),
-      nu(3,'Calcule \\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}. (decimal)',0.5,0.01,'Conjugado \\sqrt{x+1}+1.','=1/2.'),
-      nu(3,'Calcule \\lim_{x\\to 0}\\frac{\\tan x}{x}.',1,0.001,'tan x = sen x / cos x.','=1.'),
-      nuS(2,'Calcule \\lim_{x\\to -3}\\frac{x^2-9}{x+3}.',-6,0.001,'x²-9=(x-3)(x+3).','(x-3)(x+3)/(x+3)=x-3 → -6.','Guidorizzi'),
-      nuS(3,'Calcule \\lim_{x\\to 2}\\frac{x^3-8}{x-2}.',12,0.001,'x³-8=(x-2)(x²+2x+4).','x²+2x+4 → 4+4+4=12.','Guidorizzi'),
-      nuS(3,'Calcule \\lim_{t\\to 0}\\frac{\\sqrt{t^2+9}-3}{t^2}. (decimal)',0.1667,0.01,'Multiplique pelo conjugado \\sqrt{t^2+9}+3.','1/(√(t²+9)+3) → 1/6 ≈ 0,167.','Stewart'),
+      tf(2,'\\lim_{x\\to 0}\\frac{\\sin x}{x}=0. Verdadeiro?',false,'É o limite fundamental.','Falso: é 1.'),
+      nu(3,'Calcule \\lim_{x\\to 0}\\frac{\\tan x}{x}.',1,0.001,'tan = sen/cos.','=1.'),
+      nuS(2,'Calcule \\lim_{x\\to -3}\\frac{x^2-9}{x+3}.',-6,0.001,'x²-9=(x-3)(x+3).','x-3 → -6.','Guidorizzi'),
+      nuS(3,'Calcule \\lim_{x\\to 2}\\frac{x^3-8}{x-2}.',12,0.001,'x³-8=(x-2)(x²+2x+4).','→ 12.','Guidorizzi'),
+      nuS(3,'Calcule \\lim_{t\\to 0}\\frac{\\sqrt{t^2+9}-3}{t^2}. (decimal)',0.1667,0.01,'Conjugado \\sqrt{t^2+9}+3.','1/6 ≈ 0,167.','Stewart'),
     ]},
   { id:'cont', mod:'Cálculo I — Limites', level:'sup', title:'Continuidade', icon:'🪢', method:'Desenhar sem tirar o lápis',
     theory:[ MET('Imagem intuitiva + definição em três condições.'),
       P('Contínua em a = sem "buraco" nem "salto". Formalmente:'), F('\\lim_{x\\to a} f(x)=f(a)'),
       P('Exige: (1) f(a) existe; (2) o limite existe; (3) são iguais.'),
-      TIP('Polinômios são contínuos em todo lugar — por isso "substituir" funciona.') ],
-    examples:[ {q:'f(x)=x^2 \\text{ em } x=2', steps:['f(2)=4 e \\lim=4','Iguais ⇒ contínua']} ],
+      ERR('Pegadinha: o limite pode existir e a função não ser contínua (se f(a) for diferente do limite).'),
+      WHY('Só funções contínuas garantem "substituir e pronto" — e todo polinômio é contínuo.') ],
+    examples:[ {q:'f(x)=x^2 \\text{ em } x=2', steps:['f(2)=4 e \\lim=4','iguais ⇒ contínua']} ],
+    cards:[['Contínua em a','\\lim_{x\\to a}f=f(a)'],['Polinômios','contínuos em todos os reais']],
     pool:[
-      mc(1,'Continuidade em a exige que:',['f(a) não exista','\\lim_{x\\to a}f(x)=f(a)','f seja crescente','a=0'],1,'O limite bate com o valor.','lim = f(a).'),
-      mc(2,'Onde f(x)=x^3-2x é contínua?',['só em x=0','nos reais positivos','em todos os reais','em nenhum ponto'],2,'Polinômios são contínuos.','Em todos os reais.'),
-      mc(2,'Se \\lim_{x\\to a}f(x)=3 mas f(a)=5, então f em a é:',['contínua','descontínua','crescente','indefinida'],1,'Limite ≠ valor.','Descontínua.'),
-      mc(3,'f(x)=\\frac{x^2-1}{x-1} tem descontinuidade em x=1 do tipo:',['salto','removível','infinita','nenhuma'],1,'Dá 0/0 mas o limite existe (=2).','Removível.'),
-      mcS(1,'Se f é contínua em p, então \\lim_{x\\to p} f(x) é igual a:',['0','f(p)','p','não existe'],1,'É a própria definição de continuidade.','lim = f(p).','Guidorizzi'),
+      mc(1,'Continuidade em a exige que:',['f(a) não exista','\\lim_{x\\to a}f(x)=f(a)','f seja crescente','a=0'],1,'Limite bate com o valor.','lim = f(a).'),
+      mc(2,'Onde f(x)=x^3-2x é contínua?',['só em x=0','nos positivos','em todos os reais','em nenhum'],2,'Polinômios são contínuos.','Todos os reais.'),
+      tf(2,'Se \\lim_{x\\to a}f(x)=3 e f(a)=5, f é contínua em a. Verdadeiro?',false,'Limite ≠ valor.','Falso: descontínua.'),
+      mc(3,'f(x)=\\frac{x^2-1}{x-1} tem descontinuidade em x=1 do tipo:',['salto','removível','infinita','nenhuma'],1,'0/0 mas o limite existe.','Removível.'),
+      mcS(1,'Se f é contínua em p, então \\lim_{x\\to p} f(x) é:',['0','f(p)','p','não existe'],1,'Definição.','f(p).','Guidorizzi'),
     ]},
   { id:'der-def', mod:'Cálculo I — Derivadas', level:'sup', title:'Derivada: definição e ideia', icon:'📉', method:'Reta secante → tangente',
-    theory:[ MET('Thomas: partir da inclinação da secante e "espremer" até a tangente.'),
-      P('Derivada = taxa de variação instantânea = inclinação da tangente.'),
+    theory:[ MET('Thomas: partir da inclinação da secante e "espremer" o intervalo até a tangente.'),
+      P('Derivada = taxa de variação instantânea = inclinação da reta tangente no ponto.'),
       F('f\'(x)=\\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}'),
-      TIP('Posição→velocidade, custo→custo marginal.') ],
-    examples:[ {q:'f(x)=x^2', steps:['\\frac{2xh+h^2}{h}=2x+h','\\lim_{h\\to0}=2x']} ],
+      P('Lembra a inclinação a da reta? A derivada generaliza isso para curvas.'),
+      ERR('Erro comum: esquecer o limite. A média (f(x+h)-f(x))/h é a secante; só com h→0 vira a tangente.'),
+      WHY('Velocidade, custo marginal, otimização — tudo é derivada. É a taxa de mudança do mundo.') ],
+    examples:[ {q:'f(x)=x^2', steps:['\\frac{(x+h)^2-x^2}{h}','=\\frac{2xh+h^2}{h}=2x+h','\\lim_{h\\to0}=2x']} ],
+    cards:[['Derivada (definição)','\\lim_{h\\to0}\\frac{f(x+h)-f(x)}{h}'],['Significado geométrico','inclinação da reta tangente']],
     pool:[
-      nu(1,'Pela definição, f(x)=x^2 tem f\'(3)=?',6,0.001,'f\'(x)=2x.','2·3=6.'),
-      mc(1,'A derivada representa geometricamente:',['a área sob a curva','a inclinação da tangente','o valor máximo','a raiz'],1,'Secante espremida vira tangente.','Inclinação da tangente.'),
+      nu(1,'Pela definição, f(x)=x^2 tem f\'(3)=?',6,0.001,'f\'(x)=2x.','6.'),
+      mc(1,'A derivada representa geometricamente:',['a área sob a curva','a inclinação da tangente','o valor máximo','a raiz'],1,'Secante → tangente.','Inclinação da tangente.'),
+      od(2,'Ordene a derivada de f(x)=x^2 pela definição:',['Monta \\frac{(x+h)^2-x^2}{h}','Expande: \\frac{2xh+h^2}{h}','Simplifica: 2x+h','Faz h\\to 0: 2x'],'Comece montando o quociente.'),
       nu(2,'Para f(x)=x^2, quanto é f\'(5)?',10,0.001,'f\'(x)=2x.','10.'),
-      nu(2,'Para f(x)=3x, quanto é f\'(x)? (é constante)',3,0.001,'Reta: inclinação constante.','3.'),
-      nu(3,'Para f(x)=x^2+2x, pela definição f\'(1)=?',4,0.001,'f\'(x)=2x+2.','2+2=4.'),
-      nuS(2,'Sendo f(x)=x^2, calcule f\'(4) pela definição.',8,0.001,'f\'(p)=2p.','2·4=8.','Guidorizzi'),
-      nuS(3,'Sendo f(x)=\\frac{1}{x}, calcule f\'(1) pela definição.',-1,0.001,'f\'(x)=-1/x².','-1/1²=-1.','Stewart'),
+      nu(3,'Para f(x)=x^2+2x, pela definição f\'(1)=?',4,0.001,'f\'(x)=2x+2.','4.'),
+      nuS(2,'Sendo f(x)=x^2, calcule f\'(4) pela definição.',8,0.001,'f\'(p)=2p.','8.','Guidorizzi'),
+      nuS(3,'Sendo f(x)=\\frac{1}{x}, calcule f\'(1) pela definição.',-1,0.001,'f\'(x)=-1/x².','-1.','Stewart'),
     ]},
-  { id:'der-reg', mod:'Cálculo I — Derivadas', level:'sup', title:'Regras de derivação', icon:'🛠️', method:'Kit de regras',
-    theory:[ MET('Montar um "kit" e treinar reconhecimento de padrão.'),
+  { id:'der-reg', mod:'Cálculo I — Derivadas', level:'sup', title:'Regras de derivação', icon:'🛠️', method:'Kit de regras', gen:[genDer],
+    theory:[ MET('Montar um "kit" de regras e treinar reconhecimento de padrão.'),
       F('(x^n)\'=n\\,x^{n-1}'), F('(\\sin x)\'=\\cos x,\\ (\\cos x)\'=-\\sin x,\\ (e^x)\'=e^x,\\ (\\ln x)\'=\\tfrac1x'),
       F('(uv)\'=u\'v+uv\';\\quad [f(g(x))]\'=f\'(g)\\,g\''),
-      TIP('Regra da cadeia: derive "de fora para dentro".') ],
-    examples:[ {q:'\\frac{d}{dx}x^3', steps:['=3x^2']}, {q:'\\frac{d}{dx}\\sin(x^2)', steps:['cos(x²)·2x','=2x\\cos(x^2)']} ],
+      ERR('Erro comum na cadeia: esquecer de multiplicar pela derivada de dentro. (sen(x²))\' = cos(x²)·2x, não só cos(x²).'),
+      WHY('A regra da cadeia é a mais usada de todas — quase todo problema real tem função composta.') ],
+    examples:[ {q:'\\frac{d}{dx}x^3', steps:['n·x^{n-1}','=3x^2']}, {q:'\\frac{d}{dx}\\sin(x^2)', steps:['fora: cos(x²)','×dentro: 2x','=2x\\cos(x^2)']} ],
+    cards:[['(x^n)\'','n x^{n-1}'],['(\\sin x)\'','\\cos x'],['(e^x)\'','e^x'],['Regra da cadeia','f\'(g)\\cdot g\'']],
     pool:[
-      mc(1,'A derivada de \\sin x é:',['\\cos x','-\\cos x','\\sin x','-\\sin x'],0,'Seno deriva em cosseno.','cos x.'),
-      nu(1,'Se f(x)=x^4, quanto é f\'(2)? (f\'=4x³)',32,0.001,'4·2³.','4·8=32.'),
-      nu(2,'Se f(x)=x^3, quanto é f\'(2)?',12,0.001,'f\'=3x².','3·4=12.'),
-      mc(2,'A derivada de e^x é:',['x e^{x-1}','e^x','\\frac{1}{x}','1'],1,'Caso especial famoso.','e^x.'),
-      nu(3,'Se f(x)=(x^2+1)^3, pela cadeia f\'(1)=?',24,0.001,'f\'=3(x²+1)²·2x.','3·4·2=24.'),
+      mc(1,'A derivada de \\sin x é:',['\\cos x','-\\cos x','\\sin x','-\\sin x'],0,'Seno → cosseno.','cos x.'),
+      nu(1,'Se f(x)=x^4, quanto é f\'(2)? (f\'=4x³)',32,0.001,'4·2³.','32.'),
+      tf(2,'(\\cos x)\' = \\sin x. Verdadeiro?',false,'Falta o sinal de menos.','Falso: é -sen x.'),
+      nu(2,'Se f(x)=x^3, quanto é f\'(2)?',12,0.001,'f\'=3x².','12.'),
+      er(3,'Ache o erro em \\frac{d}{dx}\\sin(x^2):',['Deriva o de fora: \\cos(x^2)','Pronto: \\cos(x^2)'],1,'Falta a regra da cadeia.','Faltou ×2x. Erro no passo 2.'),
+      nu(3,'Se f(x)=(x^2+1)^3, pela cadeia f\'(1)=?',24,0.001,'3(x²+1)²·2x.','3·4·2=24.'),
       nuS(2,'Derive f(x)=x^3-3x^2+4x e calcule f\'(1).',1,0.001,'f\'=3x²-6x+4.','3-6+4=1.','Stewart'),
-      nuS(3,'Sendo f(x)=(2x+1)^4, calcule f\'(0) pela regra da cadeia.',8,0.001,'f\'=4(2x+1)³·2.','4·1·2=8.','Stewart'),
+    ]},
+  { id:'der-quo', mod:'Cálculo I — Derivadas', level:'sup', title:'Regra do quociente', icon:'➗', method:'Fórmula + mnemônico',
+    theory:[ MET('Um mnemônico salva: "baixo deriva alto, menos alto deriva baixo, sobre baixo ao quadrado".'),
+      F('\\left(\\frac{u}{v}\\right)\'=\\frac{u\'v-uv\'}{v^2}'),
+      P('Serve para derivar frações de funções, como tan x = sen x / cos x.'),
+      ERR('Erro comum: trocar a ordem no numerador. É u\'v − uv\' (o sinal de menos importa!).'),
+      WHY('Muita modelagem (concentração, taxa por unidade) aparece como quociente de funções.') ],
+    examples:[ {q:'\\frac{d}{dx}\\frac{x}{x+1}', steps:['u=x, v=x+1','\\frac{1\\cdot(x+1)-x\\cdot1}{(x+1)^2}','=\\frac{1}{(x+1)^2}']} ],
+    cards:[['\\left(\\frac{u}{v}\\right)\'','\\frac{u\'v-uv\'}{v^2}'],['(\\tan x)\'','\\sec^2 x']],
+    pool:[
+      mc(1,'A regra do quociente é:',['\\frac{u\'v+uv\'}{v^2}','\\frac{u\'v-uv\'}{v^2}','\\frac{u\'}{v\'}','u\'v-uv\''],1,'Menos no numerador.','(u\'v-uv\')/v².'),
+      tf(2,'No numerador da regra do quociente é u\'v + uv\'. Verdadeiro?',false,'É subtração.','Falso: u\'v - uv\'.'),
+      nu(2,'Para f(x)=\\frac{x}{x+1}, quanto é f\'(0)? (f\'=\\frac{1}{(x+1)^2})',1,0.001,'Avalie em 0.','1/1²=1.'),
+      od(3,'Ordene a derivada de \\frac{x}{x+1}:',['u=x, v=x+1','u\'=1, v\'=1','\\frac{1(x+1)-x(1)}{(x+1)^2}','=\\frac{1}{(x+1)^2}'],'Identifique u e v primeiro.'),
     ]},
   { id:'der-app', mod:'Cálculo I — Derivadas', level:'sup', title:'Aplicações: máximos e mínimos', icon:'🏔️', method:'Otimização por pontos críticos',
     theory:[ MET('Problema real → função → derivar → zerar → interpretar.'),
       P('Em máx/mín a tangente é horizontal ⇒ derivada zero.'), F('f\'(x)=0 \\Rightarrow \\text{ponto crítico}'),
-      P('2ª derivada dá concavidade: f\'\'>0 mínimo, f\'\'<0 máximo.'),
-      TIP('Lembra o vértice da parábola? Agora vale para qualquer curva.') ],
-    examples:[ {q:'\\min de x^2-4x+7', steps:['f\'=2x-4=0','x=2']} ],
+      P('2ª derivada dá a concavidade: f\'\'>0 mínimo, f\'\'<0 máximo.'),
+      ERR('Erro comum: achar que todo ponto crítico é máx/mín. Pode ser ponto de inflexão (ex.: f(x)=x³ em 0).'),
+      WHY('Otimização (custo mínimo, lucro máximo, menor material) é derivada aplicada ao mundo.') ],
+    examples:[ {q:'\\min de x^2-4x+7', steps:['f\'=2x-4','2x-4=0','x=2']} ],
+    cards:[['Ponto crítico','onde f\'(x)=0'],['f\'\'>0','mínimo'],['f\'\'<0','máximo']],
     pool:[
       nu(1,'Onde f(x)=x^2-6x+5 tem mínimo? (x)',3,0.001,'Zere f\'=2x-6.','x=3.'),
       nu(1,'Onde f(x)=x^2-4x+7 tem mínimo? (x)',2,0.001,'Zere f\'=2x-4.','x=2.'),
-      nu(2,'f(x)=x^2-10x+1 tem ponto crítico em x=?',5,0.001,'f\'=2x-10=0.','x=5.'),
-      mc(2,'Se f\'\'(x)>0 num ponto crítico, ele é:',['máximo','mínimo','de inflexão','indefinido'],1,'Concavidade para cima.','Mínimo.'),
-      nu(3,'f(x)=x^3-3x tem ponto crítico positivo em x=?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1.','x=1.'),
-      nuS(3,'A função f(x)=x^3-3x+1 tem mínimo local em qual x?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1; o mínimo é o positivo.','x=1 (f\'\'>0 ali).','Stewart'),
+      mc(2,'Se f\'\'(x)>0 num ponto crítico, ele é:',['máximo','mínimo','inflexão','indefinido'],1,'Concavidade p/ cima.','Mínimo.'),
+      tf(2,'Todo ponto onde f\'(x)=0 é máximo ou mínimo. Verdadeiro?',false,'Pode ser inflexão.','Falso (ex.: x³).'),
+      nu(3,'f(x)=x^3-3x tem ponto crítico positivo em x=?',1,0.001,'f\'=3x²-3=0.','x=1.'),
+      nuS(3,'A função f(x)=x^3-3x+1 tem mínimo local em qual x?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1.','x=1.','Stewart'),
+    ]},
+  { id:'lhop', mod:'Cálculo I — Derivadas', level:'sup', title:'Regra de L\'Hôpital', icon:'🩺', method:'Atalho para 0/0 e ∞/∞',
+    theory:[ MET('Quando cair em 0/0 ou ∞/∞, derive em cima e embaixo — separadamente — e tente de novo.'),
+      F('\\lim\\frac{f}{g}=\\lim\\frac{f\'}{g\'}\\quad(\\text{se } 0/0 \\text{ ou } \\infty/\\infty)'),
+      P('Recupera limites difíceis sem fatorar/racionalizar.'),
+      ERR('Erro comum: usar L\'Hôpital quando NÃO é indeterminação, ou derivar o quociente inteiro (é f\'/g\', não a regra do quociente!).'),
+      WHY('É a ferramenta mais rápida para indeterminações — e conecta limites com derivadas.') ],
+    examples:[ {q:'\\lim_{x\\to 0}\\frac{\\sin x}{x}', steps:['0/0 → L\'Hôpital','\\frac{\\cos x}{1}','substitui: \\cos 0=1']} ],
+    cards:[['L\'Hôpital','\\lim\\frac{f}{g}=\\lim\\frac{f\'}{g\'}'],['Quando aplicar','só em 0/0 ou ∞/∞']],
+    pool:[
+      mc(1,'L\'Hôpital só pode ser usada quando o limite dá:',['qualquer coisa','0/0 ou ∞/∞','um número','zero'],1,'Só indeterminação.','0/0 ou ∞/∞.'),
+      nu(2,'Por L\'Hôpital, \\lim_{x\\to 0}\\frac{\\sin x}{x} = ?',1,0.001,'Derive: cos x / 1.','cos 0 = 1.'),
+      tf(2,'Pode usar L\'Hôpital em \\lim_{x\\to 0}\\frac{\\cos x}{x+1}. Verdadeiro?',false,'Dá 1/1, não é indeterminação.','Falso.'),
+      nu(3,'Por L\'Hôpital, \\lim_{x\\to 0}\\frac{e^x-1}{x} = ?',1,0.001,'Derive: e^x / 1.','e⁰=1.'),
+      od(3,'Ordene o uso de L\'Hôpital em \\lim_{x\\to 0}\\frac{e^x-1}{x}:',['Verifica: dá 0/0','Deriva em cima e embaixo: \\frac{e^x}{1}','Substitui: e^0=1'],'Primeiro confirme a indeterminação.'),
     ]},
   { id:'int-ind', mod:'Cálculo I — Integrais', level:'sup', title:'Integral indefinida (antiderivada)', icon:'🔄', method:'Inversa da derivada',
     theory:[ MET('A integral "desfaz" a derivada.'),
       P('Integrar = achar F tal que F\'=f. Como (constante)\'=0, aparece +C.'),
-      F('\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C\\ (n\\ne-1)'), F('\\int \\cos x\\,dx=\\sin x+C,\\ \\int e^x\\,dx=e^x+C'),
-      TIP('Confira integrando: derive o resultado e veja se volta.') ],
-    examples:[ {q:'\\int 2x\\,dx', steps:['=x^2+C']} ],
+      F('\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C\\ (n\\ne-1)'), F('\\int \\cos x\\,dx=\\sin x+C,\\ \\int e^x\\,dx=e^x+C,\\ \\int\\frac1x dx=\\ln|x|+C'),
+      ERR('Erro comum: esquecer o +C na integral indefinida. Toda antiderivada tem uma família de constantes.'),
+      WHY('Antiderivada é o coração da integral definida (área) via Teorema Fundamental.') ],
+    examples:[ {q:'\\int 2x\\,dx', steps:['sobe 1 no expoente, divide','=x^2+C']} ],
+    cards:[['\\int x^n dx','\\frac{x^{n+1}}{n+1}+C'],['\\int \\frac{1}{x}dx','\\ln|x|+C'],['\\int e^x dx','e^x+C']],
     pool:[
-      mc(1,'\\int x^2\\,dx = ?',['2x+C','\\frac{x^3}{3}+C','x^3+C','\\frac{x^2}{2}+C'],1,'Some 1 no expoente e divida.','x³/3 + C.'),
-      nu(1,'Se \\int f\\,dx=x^3+C, então f(2)=? (f=3x²)',12,0.001,'Derive x³.','3·4=12.'),
+      mc(1,'\\int x^2\\,dx = ?',['2x+C','\\frac{x^3}{3}+C','x^3+C','\\frac{x^2}{2}+C'],1,'Sobe 1 no expoente e divide.','x³/3 + C.'),
+      tf(1,'A integral indefinida sempre leva "+C". Verdadeiro?',true,'Família de antiderivadas.','Verdadeiro.'),
       mc(2,'\\int \\cos x\\,dx = ?',['-\\sin x+C','\\sin x+C','\\cos x+C','-\\cos x+C'],1,'Inversa de (sen x)\'.','sen x + C.'),
-      nu(2,'A antiderivada de 6x^2 avaliada em x=1 (isto é 2x³) vale?',2,0.001,'∫6x²dx=2x³.','2·1=2.'),
-      nu(3,'Se F(x)=\\int(3x^2+2x)dx, quanto é F(1)-F(0)? (F=x³+x²)',2,0.001,'F=x³+x².','(1+1)-0=2.'),
-      mcS(2,'\\int \\frac{1}{x}\\,dx = ?',['\\ln|x|+C','x^{-2}+C','-\\frac{1}{x^2}+C','1+C'],0,'Caso especial: n=-1 foge da regra da potência.','ln|x| + C.','Stewart'),
+      nu(2,'Se \\int f\\,dx=x^3+C, então f(2)=? (f=3x²)',12,0.001,'Derive x³.','3·4=12.'),
+      mcS(2,'\\int \\frac{1}{x}\\,dx = ?',['\\ln|x|+C','x^{-2}+C','-\\frac{1}{x^2}+C','1+C'],0,'Caso n=-1.','ln|x| + C.','Stewart'),
+      nu(3,'Se F(x)=\\int(3x^2+2x)dx, quanto é F(1)-F(0)? (F=x³+x²)',2,0.001,'F=x³+x².','2.'),
     ]},
-  { id:'int-def', mod:'Cálculo I — Integrais', level:'sup', title:'Integral definida e área', icon:'📊', method:'Riemann + TFC',
+  { id:'int-sub', mod:'Cálculo I — Integrais', level:'sup', title:'Integração por substituição', icon:'🔁', method:'Cadeia ao contrário',
+    theory:[ MET('É a regra da cadeia de trás pra frente: escolha u = "a função de dentro".'),
+      F('\\int f(g(x))g\'(x)\\,dx = \\int f(u)\\,du,\\quad u=g(x)'),
+      P('Troque tudo por u e du; integre; volte para x.'),
+      ERR('Erro comum: esquecer de trocar o dx por du (não dá pra misturar x e u na mesma integral).'),
+      WHY('Substituição é a técnica de integração mais usada — destrava a maioria das integrais reais.') ],
+    examples:[ {q:'\\int 2x(x^2+1)^3\\,dx', steps:['u=x^2+1, du=2x\\,dx','\\int u^3\\,du=\\frac{u^4}{4}','=\\frac{(x^2+1)^4}{4}+C']} ],
+    cards:[['Substituição','u = função de dentro'],['\\int f(g)g\' dx','\\int f(u)du']],
+    pool:[
+      mc(1,'Em \\int 2x(x^2+1)^3 dx, a melhor escolha é u =',['2x','x^2+1','(x^2+1)^3','x'],1,'A "função de dentro".','u=x²+1.'),
+      tf(2,'Na substituição, você troca dx por du. Verdadeiro?',true,'Tudo vira u.','Verdadeiro.'),
+      od(2,'Ordene a substituição em \\int 2x(x^2+1)^3 dx:',['u=x^2+1','du=2x\\,dx','\\int u^3\\,du=\\frac{u^4}{4}','volta: \\frac{(x^2+1)^4}{4}+C'],'Escolha u primeiro.'),
+      mc(3,'\\int 2x\\,e^{x^2}\\,dx = ? (u=x^2)',['e^{x^2}+C','2e^{x^2}+C','x^2 e^{x^2}+C','\\frac{e^{x^2}}{2}+C'],0,'du=2x dx ⇒ ∫eᵘdu.','e^{x²}+C.'),
+    ]},
+  { id:'int-def', mod:'Cálculo I — Integrais', level:'sup', title:'Integral definida e área', icon:'📊', method:'Riemann + TFC', gen:[genInt],
     theory:[ MET('Área por retângulos (Riemann) → atalho pelo Teorema Fundamental.'),
       P('Integral definida = área com sinal entre a curva e o eixo x, de a a b.'), F('\\int_a^b f(x)\\,dx = F(b)-F(a)'),
-      P('TFC conecta derivada e integral: integrar é o inverso de derivar.'),
-      TIP('Ache F, avalie em b e em a, e subtraia.') ],
-    examples:[ {q:'\\int_0^2 x\\,dx', steps:['F=\\frac{x^2}{2}','F(2)-F(0)=2']} ],
+      P('TFC: integrar é o inverso de derivar; ache F, avalie em b e a, subtraia.'),
+      ERR('Erro comum: inverter a ordem F(a)-F(b), ou esquecer que área abaixo do eixo conta como negativa.'),
+      WHY('Área, volume, trabalho, probabilidade — tudo é integral definida.') ],
+    examples:[ {q:'\\int_0^2 x\\,dx', steps:['F=\\frac{x^2}{2}','F(2)-F(0)','=2-0=2']} ],
+    cards:[['\\int_a^b f dx','F(b)-F(a)'],['TFC','integrar desfaz derivar']],
     pool:[
       nu(1,'Calcule \\int_0^3 2x\\,dx.',9,0.001,'Antiderivada x²; 3²-0².','9.'),
-      nu(1,'Calcule \\int_1^2 3x^2\\,dx.',7,0.001,'Antiderivada x³; 2³-1³.','8-1=7.'),
-      nu(2,'Calcule \\int_0^2 x\\,dx.',2,0.001,'F=x²/2.','2-0=2.'),
+      nu(1,'Calcule \\int_1^2 3x^2\\,dx.',7,0.001,'Antiderivada x³; 2³-1³.','7.'),
+      od(2,'Ordene o cálculo de \\int_0^2 2x\\,dx:',['Antiderivada: F(x)=x^2','F(2)=4','F(0)=0','F(2)-F(0)=4'],'Comece pela antiderivada.'),
       nu(2,'Calcule \\int_0^1 x^2\\,dx. (decimal)',0.3333,0.01,'F=x³/3.','1/3 ≈ 0,333.'),
-      nu(3,'Calcule \\int_0^2 (3x^2-2x)\\,dx.',4,0.001,'F=x³-x².','(8-4)-0=4.'),
-      nu(3,'Calcule \\int_1^3 (2x+1)\\,dx.',10,0.001,'F=x²+x.','(9+3)-(1+1)=10.'),
-      nuS(2,'Calcule \\int_0^1 x^3\\,dx. (decimal)',0.25,0.01,'F=x⁴/4.','1/4 = 0,25.','Stewart'),
-      nuS(3,'Calcule \\int_1^3 x^2\\,dx. (decimal)',8.6667,0.01,'F=x³/3.','27/3 - 1/3 = 26/3 ≈ 8,67.','Guidorizzi'),
-      nuS(3,'Calcule \\int_1^2 (x^2-x)\\,dx. (decimal)',0.8333,0.01,'F=x³/3 - x²/2.','(8/3-2)-(1/3-1/2)=5/6 ≈ 0,83.','Guidorizzi'),
+      er(3,'Ache o erro em \\int_0^2 x\\,dx:',['F(x)=x^2','F(2)-F(0)=4-0','=4'],0,'Confira a antiderivada.','A antiderivada de x é x²/2, não x². Erro no passo 1.'),
+      nuS(2,'Calcule \\int_0^1 x^3\\,dx. (decimal)',0.25,0.01,'F=x⁴/4.','0,25.','Stewart'),
+      nuS(3,'Calcule \\int_1^3 x^2\\,dx. (decimal)',8.6667,0.01,'F=x³/3.','26/3 ≈ 8,67.','Guidorizzi'),
+      nuS(3,'Calcule \\int_1^2 (x^2-x)\\,dx. (decimal)',0.8333,0.01,'F=x³/3 - x²/2.','5/6 ≈ 0,83.','Guidorizzi'),
     ]},
 ];
 
 const MODULES = [...new Set(CURR.map(s=>s.mod))];
 const LEVEL_LABEL = { fund:'Fundamental (revisão)', med:'Ensino Médio (lacunas)', sup:'Cálculo (foco)' };
-const BAND_ORDER = ['fund','med','sup'];
 
-/* seleção de questão por dificuldade */
-function pickIdx(pool, d, used){
-  const avail = pool.map((q,i)=>i).filter(i=>used.indexOf(i)<0);
-  if(!avail.length) return null;
-  avail.sort((a,b)=>Math.abs(pool[a].d-d)-Math.abs(pool[b].d-d));
-  return avail[0];
-}
-function pickDiagItem(skill, d){
-  const idx = pickIdx(skill.pool, d, []);
-  // prefere MC no diagnóstico (mais rápido) se houver na dificuldade escolhida
-  const sameD = skill.pool.filter(q=>q.d===d);
-  const mcq = sameD.find(q=>q.type==='mc');
-  return mcq || skill.pool[idx];
+/* seleção de questão */
+function pickIdx(pool, d, used){ const avail=pool.map((q,i)=>i).filter(i=>used.indexOf(i)<0); if(!avail.length) return null; avail.sort((a,b)=>Math.abs(pool[a].d-d)-Math.abs(pool[b].d-d)); return avail[0]; }
+function pickDiagItem(skill, d){ const same=skill.pool.filter(q=>q.d===d); const mcq=same.find(q=>q.type==='mc'||q.type==='tf'); return mcq || skill.pool[pickIdx(skill.pool,d,[])]; }
+// próxima questão para prática/aula: usa gerador quando o pool não basta
+function nextExercise(skill, used, diff, preferGen){
+  if(preferGen && skill.gen && skill.gen.length && Math.random()<0.65) return pick(skill.gen)();
+  const idx=pickIdx(skill.pool, diff, used);
+  if(idx==null){ if(skill.gen && skill.gen.length) return pick(skill.gen)(); return {__idx:pickIdx(skill.pool,diff,[]), recycle:true}; }
+  return {__idx:idx};
 }
 
 /* ============================ ESTADO ============================ */
-const STORE_KEY = 'trilha_calculo_v2';
+const STORE_KEY = 'trilha_calculo_v3';
 const defaultState = () => ({ user:{ name:'', xp:0, streak:0, lastActive:0, diagnosticDone:false, simDays:0 }, skills:{}, reviews:[], log:[] });
 function loadState(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultState(); } catch(e){ return defaultState(); } }
 function saveState(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
@@ -354,12 +462,12 @@ function useApp(){
   const addXp = useCallback((amount, note)=>{ setState(s=>{ const streak=bumpStreak(s); const t=todayKey(s.user.simDays); return {...s, user:{...s.user, xp:s.user.xp+amount, streak, lastActive:t}, log:[{ts:Date.now(),note,xp:amount},...s.log].slice(0,50)}; }); },[]);
   const scheduleReviews = (s, skillId)=>{ const t=todayKey(s.user.simDays); const others=s.reviews.filter(r=>r.skillId!==skillId); const news=REVIEW_STAGES.map((d,i)=>({skillId,due:t+d*DAY,stage:i})); return [...others,...news]; };
 
-  const masterSkill = useCallback((skillId, score, lvl)=>{ setState(s=>{ const skills={...s.skills,[skillId]:{status:'mastered',best:Math.max(score,s.skills[skillId]?.best||0),lvl:lvl||s.skills[skillId]?.lvl||1}}; const idx=CURR.findIndex(x=>x.id===skillId); const next=CURR[idx+1]; if(next && (!skills[next.id]||skills[next.id].status==='locked')) skills[next.id]={status:'available',best:0,lvl:skills[next.id]?.lvl||1}; const reviews=scheduleReviews(s,skillId); return {...s,skills,reviews}; }); },[]);
+  const masterSkill = useCallback((skillId, score, lvl)=>{ setState(s=>{ const skills={...s.skills,[skillId]:{status:'mastered',best:Math.max(score,s.skills[skillId]?.best||0),lvl:lvl||s.skills[skillId]?.lvl||1}}; const idx=CURR.findIndex(x=>x.id===skillId); const next=CURR[idx+1]; if(next && (!skills[next.id]||skills[next.id].status==='locked')) skills[next.id]={status:'available',best:0,lvl:1}; const reviews=scheduleReviews(s,skillId); return {...s,skills,reviews}; }); },[]);
   const completeReview = useCallback((skillId)=>{ setState(s=>{ const t=todayKey(s.user.simDays); const due=s.reviews.filter(r=>r.skillId===skillId && r.due<=t).sort((a,b)=>a.stage-b.stage); let reviews=s.reviews; if(due[0]) reviews=s.reviews.filter(r=>r!==due[0]); return {...s,reviews}; }); },[]);
 
   const applyDiagnostic = useCallback((results)=>{ setState(s=>{ const skills={}; let reviews=[...s.reviews]; const t=todayKey(s.user.simDays);
     CURR.forEach(sk=>{ skills[sk.id]={status:'locked',best:0,lvl:1}; });
-    Object.entries(results).forEach(([id,r])=>{ if(r.ok && skills[id]){ const score=r.d>=3?100:r.d>=2?85:70; skills[id]={status:'mastered',best:score,lvl:r.d}; REVIEW_STAGES.forEach((d,i)=>reviews.push({skillId:id,due:t+d*DAY,stage:i})); } else if(skills[id]){ skills[id]={status:'locked',best:0,lvl:1}; } });
+    Object.entries(results).forEach(([id,r])=>{ if(r.ok && skills[id]){ const score=r.d>=3?100:r.d>=2?85:70; skills[id]={status:'mastered',best:score,lvl:r.d}; REVIEW_STAGES.forEach((d,i)=>reviews.push({skillId:id,due:t+d*DAY,stage:i})); } });
     const firstOpen=CURR.find(sk=>skills[sk.id].status!=='mastered'); if(firstOpen) skills[firstOpen.id]={...skills[firstOpen.id],status:'available'};
     return {...s,skills,reviews,user:{...s.user,diagnosticDone:true}}; }); },[]);
 
@@ -381,34 +489,66 @@ function TopBar({app}){ const {user}=app.state; const lvl=levelOf(user.xp); cons
     <div className="flex-1"><div className="flex justify-between text-[11px] text-slate-500 mb-0.5"><span>{lvl.emoji} {lvl.name}</span><span>{user.xp} XP</span></div><Bar value={prog}/></div>
   </div></div>); }
 
-/* ============================ Exercício (uma questão) ============================ */
+/* ============================ Exercício (mc, num, tf, err, order) ============================ */
 function Exercise({item, mode, adaptive, onDone}){
+  // normaliza tf e err para o caminho de múltipla escolha
+  let type=item.type, options=item.options, correct=item.a, prompt=item.q;
+  if(type==='tf'){ options=['✅ Verdadeiro','❌ Falso']; correct=item.a?0:1; type='mc'; }
+  if(type==='err'){ options=item.steps; correct=item.a; type='mc'; }
+
   const [sel,setSel]=useState(null); const [numVal,setNumVal]=useState('');
+  const [orderPick,setOrderPick]=useState([]);
+  const shuffled = useMemo(()=> item.type==='order'? shuffle(item.steps.map((s,i)=>({s,i}))) : null, [item]);
   const [phase,setPhase]=useState('idle'); const [ok,setOk]=useState(false);
   const [showHint,setShowHint]=useState(false); const [showSol,setShowSol]=useState(false);
   const isDiag = mode==='diag';
 
-  const canCheck = item.type==='mc' ? sel!=null : numVal.trim()!=='';
-  const check=()=>{ let correct=false; if(item.type==='mc') correct=sel===item.a; else { const v=parseFloat(String(numVal).replace(',','.')); correct=!isNaN(v)&&Math.abs(v-item.a)<=(item.tol||0.001); } setOk(correct); setPhase('result'); if(!correct && adaptive) setShowHint(true); };
-  const retry=()=>{ setPhase('idle'); setSel(null); setNumVal(''); setShowSol(false); };
+  const canCheck = type==='mc' ? sel!=null : item.type==='num' ? numVal.trim()!=='' : item.type==='order' ? orderPick.length===item.steps.length : false;
+
+  const check=()=>{
+    let c=false;
+    if(type==='mc') c = sel===correct;
+    else if(item.type==='num'){ const v=parseFloat(String(numVal).replace(',','.')); c=!isNaN(v)&&Math.abs(v-item.a)<=(item.tol||0.001); }
+    else if(item.type==='order'){ c = orderPick.every((p,i)=> shuffled[p].i===i); }
+    setOk(c); setPhase('result'); if(!c && adaptive) setShowHint(true);
+  };
+  const retry=()=>{ setPhase('idle'); setSel(null); setNumVal(''); setOrderPick([]); setShowSol(false); };
+  const toggleOrder=(pi)=>{ setOrderPick(prev=> prev.includes(pi)? prev.filter(x=>x!==pi) : [...prev,pi]); };
+
+  const typeBadge = { tf:'Verdadeiro ou Falso', err:'Ache o erro', order:'Ordene os passos' }[item.type];
 
   return (<div className="fade-in">
-    {item.src && <div className="mb-2"><span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':'📗'} Exercício — {item.src}</span></div>}
-    <div className="text-slate-800 text-lg mb-4 leading-relaxed"><M tex={item.q} block/></div>
-    {item.type==='mc' ? (
-      <div className="grid gap-2">{item.options.map((opt,i)=>{ const chosen=sel===i; const right=phase==='result'&&i===item.a; const wrong=phase==='result'&&chosen&&i!==item.a;
+    <div className="flex flex-wrap gap-2 mb-2">
+      {item.src && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':'📗'} {item.src}</span>}
+      {typeBadge && <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 font-medium">🧠 {typeBadge}</span>}
+      {item.gen && <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">♾️ gerado</span>}
+    </div>
+    <div className="text-slate-800 text-lg mb-4 leading-relaxed"><M tex={prompt} block/></div>
+    {item.type==='err' && <p className="text-sm text-slate-500 -mt-2 mb-3">Toque no passo que contém o erro:</p>}
+
+    {type==='mc' ? (
+      <div className="grid gap-2">{options.map((opt,i)=>{ const chosen=sel===i; const right=phase==='result'&&i===correct; const wrong=phase==='result'&&chosen&&i!==correct;
         return <button key={i} disabled={phase==='result'} onClick={()=>phase!=='result'&&setSel(i)}
           className={"text-left px-4 py-3 rounded-xl border-2 transition min-h-[52px] "+(right?'border-teal-500 bg-teal-50':wrong?'border-red-400 bg-red-50 shake':chosen?'border-teal-500 bg-teal-50':'border-slate-200 bg-white active:scale-[.99]')}>
-          {hasTex(opt)?<M tex={opt}/>:<span>{opt}</span>}</button>; })}</div>
-    ) : (
+          {item.type==='err' && <span className="text-slate-400 mr-2">{i+1}.</span>}{hasTex(opt)?<M tex={opt}/>:<span>{opt}</span>}</button>; })}</div>
+    ) : item.type==='num' ? (
       <input type="text" inputMode="decimal" value={numVal} disabled={phase==='result'} onChange={e=>setNumVal(e.target.value)} placeholder="Digite sua resposta"
         className={"w-full px-4 py-3 rounded-xl border-2 text-lg outline-none "+(phase==='result'?(ok?'border-teal-500 bg-teal-50':'border-red-400 bg-red-50 shake'):'border-slate-200 focus:border-teal-400')}/>
+    ) : ( /* order */
+      <div>
+        <div className="grid gap-2 mb-3">{shuffled.map((o,pi)=>{ const pos=orderPick.indexOf(pi); const chosen=pos>=0;
+          return <button key={pi} disabled={phase==='result'} onClick={()=>phase!=='idle'?null:toggleOrder(pi)}
+            className={"flex items-center gap-2 text-left px-4 py-3 rounded-xl border-2 min-h-[52px] "+(chosen?'border-teal-500 bg-teal-50':'border-slate-200 bg-white active:scale-[.99]')}>
+            <span className={"w-6 h-6 shrink-0 rounded-full grid place-items-center text-xs font-bold "+(chosen?'bg-teal-500 text-white':'bg-slate-100 text-slate-400')}>{chosen?pos+1:''}</span>
+            {hasTex(o.s)?<M tex={o.s}/>:<span>{o.s}</span>}</button>; })}</div>
+      </div>
     )}
 
     {phase==='result' && ok && <div className="mt-3 text-teal-700 font-semibold pop">✅ Isso aí!</div>}
     {phase==='result' && !ok && <div className="mt-3 text-sm text-red-600">{isDiag?'Sem problema — isso entra na sua trilha.':'Não foi dessa vez. 💪'}</div>}
+    {phase==='result' && item.type==='order' && <div className="mt-2 text-sm text-slate-600">Ordem correta: {item.steps.map((s,i)=><span key={i} className="inline-block mr-2">{i+1}) <T s={s}/></span>)}</div>}
 
-    {(showHint || (phase==='result' && !ok && item.hint)) && <div className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">💡 <b>Dica:</b> {item.hint}</div>}
+    {(showHint || (phase==='result' && !ok && item.hint)) && item.hint && <div className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">💡 <b>Dica:</b> {item.hint}</div>}
     {phase==='result' && (ok||showSol) && item.sol && <div className="mt-3 text-sm bg-slate-50 rounded-lg p-3 text-slate-700"><b>Solução:</b> <T s={item.sol}/></div>}
 
     <div className="mt-4 flex gap-2">
@@ -416,80 +556,84 @@ function Exercise({item, mode, adaptive, onDone}){
       {phase==='result' && ok && <button onClick={()=>onDone(true)} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl active:scale-[.98]">Continuar →</button>}
       {phase==='result' && !ok && isDiag && <button onClick={()=>onDone(false)} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl">Continuar →</button>}
       {phase==='result' && !ok && !isDiag && !showSol && <>
-        {!showHint && <button onClick={()=>setShowHint(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-600">Dica</button>}
+        {!showHint && item.hint && <button onClick={()=>setShowHint(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-600">Dica</button>}
         <button onClick={retry} className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl">Tentar de novo</button>
-        <button onClick={()=>setShowSol(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-500 text-sm">Ver solução</button>
+        {item.sol && <button onClick={()=>setShowSol(true)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-500 text-sm">Solução</button>}
+        {!item.sol && <button onClick={()=>onDone(false)} className="px-4 py-3 rounded-xl border border-slate-300 text-slate-500 text-sm">Pular</button>}
       </>}
       {phase==='result' && !ok && !isDiag && showSol && <button onClick={()=>onDone(false)} className="flex-1 bg-slate-600 text-white font-semibold py-3 rounded-xl">Continuar →</button>}
     </div>
   </div>);
 }
 
-/* ============================ Diagnóstico adaptativo ============================ */
-function Diagnostic({app}){
-  const [st,setSt]=useState(()=>({ i:0, curDiff:2, bandStreak:0, results:{} }));
-  const skill=CURR[st.i]; const item=pickDiagItem(skill, st.curDiff);
-
-  const answer=(correct)=>{
-    const results={...st.results,[skill.id]:{ok:correct,d:st.curDiff}};
-    let bandStreak=correct?st.bandStreak+1:0;
-    let curDiff=correct?Math.min(3,st.curDiff+1):Math.max(1,st.curDiff-1);
-    let next=st.i+1; const band=skill.level;
-    // atalho: em fund/med, 2 acertos seguidos "pula" o resto da banda
-    if(band!=='sup' && bandStreak>=2){ while(next<CURR.length && CURR[next].level===band){ results[CURR[next].id]={ok:true,d:st.curDiff,skip:true}; next++; } }
-    if(next>=CURR.length){ app.applyDiagnostic(results); return; }
-    if(CURR[next].level!==band){ curDiff=2; bandStreak=0; }
-    setSt({i:next,curDiff,bandStreak,results});
-  };
-
-  const answered=Object.keys(st.results).length;
-  return (<div className="max-w-xl mx-auto px-5 pt-6 pb-24">
-    <div className="mb-4"><div className="flex justify-between text-xs text-slate-500 mb-1"><span>Teste de nível adaptativo</span><span>{answered} respondidas</span></div><Bar value={(st.i/CURR.length)*100}/></div>
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-      <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{LEVEL_LABEL[skill.level]}</p><DiffChip d={st.curDiff}/></div>
-      <Exercise key={st.i} mode="diag" adaptive={false} item={{...item, hint:item.hint||'Se não lembrar, tudo bem — entra na sua trilha.'}} onDone={answer}/>
+/* ============================ Flashcards ============================ */
+function Flashcards({skill, onDone}){
+  const cards = skill.cards||[];
+  const [i,setI]=useState(0); const [flip,setFlip]=useState(false); const [known,setKnown]=useState(0);
+  if(!cards.length) return <p className="text-sm text-slate-400 p-4">Sem cartões neste tópico.</p>;
+  if(i>=cards.length) return (<div className="text-center p-6 fade-in"><div className="text-4xl">🃏</div><p className="font-semibold text-slate-800 mt-2">Fim dos cartões!</p><p className="text-sm text-slate-500">Você marcou saber {known} de {cards.length}.</p><button onClick={()=>{setI(0);setKnown(0);setFlip(false);}} className="mt-4 bg-teal-600 text-white font-semibold px-5 py-2.5 rounded-xl">Revisar de novo</button></div>);
+  const c=cards[i]; const rate=(good)=>{ if(good) setKnown(k=>k+1); setFlip(false); setI(i+1); };
+  return (<div className="fade-in">
+    <div className="flex justify-between text-xs text-slate-500 mb-2"><span>Cartão {i+1}/{cards.length}</span><span>toque para virar</span></div>
+    <div className={"flip "+(flip?'flipped':'')} onClick={()=>setFlip(f=>!f)} style={{minHeight:180}}>
+      <div className="flip-inner" style={{minHeight:180}}>
+        <div className="flip-face bg-white border-2 border-teal-200 rounded-2xl grid place-items-center p-6 text-center" style={{minHeight:180}}>
+          <div><div className="text-[11px] uppercase tracking-wide text-teal-500 mb-2">Frente</div><div className="text-xl text-slate-800">{hasTex(c[0])?<M tex={c[0]} block/>:c[0]}</div></div>
+        </div>
+        <div className="flip-face flip-back bg-teal-600 text-white rounded-2xl grid place-items-center p-6 text-center" style={{minHeight:180}}>
+          <div><div className="text-[11px] uppercase tracking-wide text-teal-100 mb-2">Verso</div><div className="text-xl">{hasTex(c[1])?<M tex={c[1]} block/>:c[1]}</div></div>
+        </div>
+      </div>
     </div>
-    <p className="text-center text-xs text-slate-400 mt-4">A dificuldade sobe quando você acerta e desce quando erra — assim achamos seu nível exato. Acertos você pula (voltam em revisão).</p>
+    {flip ? (<div className="grid grid-cols-2 gap-2 mt-4"><button onClick={()=>rate(false)} className="py-3 rounded-xl border-2 border-red-200 text-red-600 font-semibold">Ainda não</button><button onClick={()=>rate(true)} className="py-3 rounded-xl border-2 border-teal-300 bg-teal-50 text-teal-700 font-semibold">Já sei ✓</button></div>)
+      : (<button onClick={()=>setFlip(true)} className="w-full mt-4 bg-teal-600 text-white font-semibold py-3 rounded-xl">Ver resposta</button>)}
   </div>);
 }
 
-/* ============================ Motor adaptativo de exercícios ============================ */
+/* ============================ Exemplo guiado (revela passos) ============================ */
+function GuidedExample({ex}){
+  const [shown,setShown]=useState(0);
+  return (<div className="bg-white rounded-xl p-4 border border-slate-100">
+    <M tex={ex.q} block/>
+    <div className="mt-2 space-y-1">{ex.steps.slice(0,shown).map((s,j)=><div key={j} className="text-sm text-slate-600 flex gap-2 fade-in"><span className="text-teal-500">{j+1}.</span><M tex={s}/></div>)}</div>
+    {shown<ex.steps.length ? <button onClick={()=>setShown(shown+1)} className="mt-3 text-sm text-teal-600 font-medium border border-teal-200 rounded-lg px-3 py-1.5">Mostrar próximo passo →</button>
+      : <div className="mt-3 text-xs text-teal-600">✓ Resolução completa</div>}
+  </div>);
+}
+
+/* ============================ Motor adaptativo (aula/revisão) ============================ */
 function AdaptiveExercises({skill, startDiff, target, escalate, reviewMode, onCorrect, onFinish}){
   const [diff,setDiff]=useState(startDiff||1);
   const [used,setUsed]=useState([]);
-  const [cur,setCur]=useState(()=>pickIdx(skill.pool, startDiff||1, []));
-  const [correctCount,setCorrectCount]=useState(0);
-  const [bestDiff,setBestDiff]=useState(0);
-  const [cStreak,setCStreak]=useState(0); const [wStreak,setWStreak]=useState(0);
-  const [flash,setFlash]=useState(null);
-  const needed=Math.min(target, skill.pool.length);
-  const item=skill.pool[cur];
+  const [item,setItem]=useState(()=>{ const n=nextExercise(skill,[],startDiff||1,false); return n.__idx!=null? skill.pool[n.__idx] : n; });
+  const [curIdx,setCurIdx]=useState(()=>{ const n=nextExercise(skill,[],startDiff||1,false); return n.__idx!=null?n.__idx:-1; });
+  const [correctCount,setCorrectCount]=useState(0); const [bestDiff,setBestDiff]=useState(0);
+  const [cStreak,setCStreak]=useState(0); const [wStreak,setWStreak]=useState(0); const [flash,setFlash]=useState(null); const [tick,setTick]=useState(0);
+  const needed=Math.min(target, skill.pool.length + (skill.gen?2:0));
   const register = (wStreak>=1 || diff===1) ? 'simples' : (diff===3 ? 'desafio' : 'padrao');
 
   const handle=(correct)=>{
-    const nUsed=[...used,cur];
+    let nUsed = curIdx>=0 ? [...used,curIdx] : used;
     let nCorrect=correctCount, nBest=bestDiff, nC=cStreak, nW=wStreak, nDiff=diff, fl=null;
-    if(correct){ onCorrect(); nCorrect++; nBest=Math.max(nBest,item.d); nC++; nW=0; if(escalate && nC>=2 && nDiff<3){ nDiff++; nC=0; fl='up'; } }
+    if(correct){ onCorrect(); nCorrect++; nBest=Math.max(nBest,item.d||diff); nC++; nW=0; if(escalate && nC>=2 && nDiff<3){ nDiff++; nC=0; fl='up'; } }
     else { nW++; nC=0; if(nDiff>1){ nDiff--; if(escalate) fl='down'; } }
     if(nCorrect>=needed){ onFinish(nBest||1); return; }
-    const nextIdx=pickIdx(skill.pool, nDiff, nUsed);
-    if(nextIdx==null){ onFinish(nBest||1); return; }
-    setUsed(nUsed); setCorrectCount(nCorrect); setBestDiff(nBest); setCStreak(nC); setWStreak(nW); setDiff(nDiff); setCur(nextIdx); setFlash(fl);
+    const n=nextExercise(skill, nUsed, nDiff, false);
+    let nextItem, nextIdx;
+    if(n.__idx!=null){ nextIdx=n.__idx; nextItem=skill.pool[n.__idx]; } else { nextIdx=-1; nextItem=n; }
+    setUsed(nUsed); setCorrectCount(nCorrect); setBestDiff(nBest); setCStreak(nC); setWStreak(nW); setDiff(nDiff); setItem(nextItem); setCurIdx(nextIdx); setFlash(fl); setTick(t=>t+1);
     if(fl) setTimeout(()=>setFlash(null),1400);
   };
 
   return (<div>
-    <div className="flex justify-between items-center text-xs text-slate-500 mb-2">
-      <span>{reviewMode?'Revisão':'Progresso'}: {correctCount}/{needed} ✓</span>
-      <DiffChip d={item.d}/>
-    </div>
+    <div className="flex justify-between items-center text-xs text-slate-500 mb-2"><span>{reviewMode?'Revisão':'Progresso'}: {correctCount}/{needed} ✓</span><DiffChip d={item.d||diff}/></div>
     <Bar value={(correctCount/needed)*100} className="mb-3"/>
     {flash==='up' && <div className="mb-3 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg p-2.5 pop">🔥 Mandou bem! Subindo a dificuldade.</div>}
-    {flash==='down' && <div className="mb-3 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg p-2.5">🧩 Vamos com calma — voltando um nível para reforçar.</div>}
-    {register==='simples' && !flash && <div className="mb-3 text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5">🧩 Modo passo a passo: leia a dica e vá com calma, sem pressa.</div>}
+    {flash==='down' && <div className="mb-3 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg p-2.5">🧩 Vamos com calma — voltando um nível.</div>}
+    {register==='simples' && !flash && <div className="mb-3 text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5">🧩 Modo passo a passo: leia a dica e vá com calma.</div>}
     {register==='desafio' && !flash && <div className="mb-3 text-xs text-red-700 bg-red-50 rounded-lg p-2.5">🔥 Modo desafio ativado!</div>}
     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-      <Exercise key={cur+'-'+used.length} mode="lesson" adaptive={register==='simples'} item={item} onDone={handle}/>
+      <Exercise key={tick} mode="lesson" adaptive={register==='simples'} item={item} onDone={handle}/>
     </div>
   </div>);
 }
@@ -498,10 +642,33 @@ function AdaptiveExercises({skill, startDiff, target, escalate, reviewMode, onCo
 function Onboarding({app}){ const [name,setName]=useState('');
   return (<div className="max-w-xl mx-auto px-5 pt-10 pb-24 text-center fade-in">
     <div className="text-6xl mb-4">📐</div><h1 className="text-2xl font-bold text-slate-800">Trilha de Cálculo</h1>
-    <p className="text-slate-500 mt-2 mb-8">Do fundamental ao Cálculo I. Descubra suas lacunas e siga uma trilha feita pra você — com dificuldade adaptativa e revisões inteligentes.</p>
+    <p className="text-slate-500 mt-2 mb-8">Do fundamental ao Cálculo I. Diagnóstico adaptativo, trilha sob medida, exercícios infinitos, flashcards e revisões inteligentes.</p>
     <input value={name} onChange={e=>setName(e.target.value)} placeholder="Como podemos te chamar?" className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-400 outline-none text-center mb-3"/>
     <button disabled={!name.trim()} onClick={()=>app.setName(name.trim())} className="w-full bg-teal-600 disabled:opacity-40 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Começar</button>
     <p className="text-xs text-slate-400 mt-6">Seu progresso fica salvo só neste aparelho.</p></div>); }
+
+function Diagnostic({app}){
+  const [st,setSt]=useState(()=>({ i:0, curDiff:2, bandStreak:0, results:{} }));
+  const skill=CURR[st.i]; const item=pickDiagItem(skill, st.curDiff);
+  const answer=(correct)=>{
+    const results={...st.results,[skill.id]:{ok:correct,d:st.curDiff}};
+    let bandStreak=correct?st.bandStreak+1:0; let curDiff=correct?Math.min(3,st.curDiff+1):Math.max(1,st.curDiff-1);
+    let next=st.i+1; const band=skill.level;
+    if(band!=='sup' && bandStreak>=2){ while(next<CURR.length && CURR[next].level===band){ results[CURR[next].id]={ok:true,d:st.curDiff,skip:true}; next++; } }
+    if(next>=CURR.length){ app.applyDiagnostic(results); return; }
+    if(CURR[next].level!==band){ curDiff=2; bandStreak=0; }
+    setSt({i:next,curDiff,bandStreak,results});
+  };
+  const answered=Object.keys(st.results).length;
+  return (<div className="max-w-xl mx-auto px-5 pt-6 pb-24">
+    <div className="mb-4"><div className="flex justify-between text-xs text-slate-500 mb-1"><span>Teste de nível adaptativo</span><span>{answered} respondidas</span></div><Bar value={(st.i/CURR.length)*100}/></div>
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{LEVEL_LABEL[skill.level]}</p><DiffChip d={st.curDiff}/></div>
+      <Exercise key={st.i} mode="diag" adaptive={false} item={{...item, hint:item.hint||'Se não lembrar, tudo bem — entra na sua trilha.'}} onDone={answer}/>
+    </div>
+    <p className="text-center text-xs text-slate-400 mt-4">A dificuldade sobe quando você acerta e desce quando erra. Acertos você pula (voltam em revisão).</p>
+  </div>);
+}
 
 function SkillCard({skill, st, onOpen}){ const locked=!st||st.status==='locked'; const mastered=st?.status==='mastered';
   return (<button disabled={locked} onClick={onOpen} className={"w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition min-h-[64px] "+(locked?'bg-slate-50 border-slate-100 opacity-60':mastered?'bg-teal-50 border-teal-200 active:scale-[.99]':'bg-white border-slate-200 shadow-sm active:scale-[.99]')}>
@@ -517,36 +684,75 @@ function Trilha({app, openSkill}){ const {skills}=app.state; const byMod=MODULES
   </div>); }
 
 function Lesson({app, skillId, onDone, reviewMode}){
-  const skill=CURR.find(s=>s.id===skillId); const [tab,setTab]=useState(reviewMode?'ex':'theory');
+  const skill=CURR.find(s=>s.id===skillId); const [tab,setTab]=useState(reviewMode?'ex':'learn');
   const skState=app.state.skills[skillId];
   const startDiff = reviewMode ? (skState?.lvl||2) : (skState?.status==='mastered' ? (skState?.lvl||1) : 1);
   const onCorrect=()=>app.addXp(reviewMode?15:10, (reviewMode?'Revisão: ':'Exercício: ')+skill.title);
   const finish=(bestDiff)=>{ if(reviewMode){ app.completeReview(skillId); } else { const score=bestDiff>=3?100:bestDiff>=2?85:70; app.masterSkill(skillId,score,bestDiff); } onDone(true); };
+  const TB=({id,label})=>(<button onClick={()=>setTab(id)} className={"flex-1 py-2 rounded-lg text-sm font-medium "+(tab===id?'bg-white shadow-sm text-teal-700':'text-slate-500')}>{label}</button>);
 
   return (<div className="max-w-xl mx-auto px-4 pt-3 pb-28">
     <button onClick={()=>onDone(false)} className="text-slate-500 text-sm mb-2">← Voltar</button>
     <div className="flex items-center gap-2 mb-1"><span className="text-2xl">{skill.icon}</span><h2 className="text-xl font-bold text-slate-800">{skill.title}</h2></div>
     <p className="text-xs text-slate-500 mb-4">{reviewMode?'🔁 Revisão espaçada — reforce o que já aprendeu':'Metodologia: '+skill.method}</p>
 
-    {!reviewMode && (<div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
-      <button onClick={()=>setTab('theory')} className={"flex-1 py-2 rounded-lg text-sm font-medium "+(tab==='theory'?'bg-white shadow-sm text-teal-700':'text-slate-500')}>📖 Aula</button>
-      <button onClick={()=>setTab('ex')} className={"flex-1 py-2 rounded-lg text-sm font-medium "+(tab==='ex'?'bg-white shadow-sm text-teal-700':'text-slate-500')}>✏️ Exercícios</button></div>)}
+    {!reviewMode && (<div className="flex gap-1.5 mb-4 bg-slate-100 p-1 rounded-xl"><TB id="learn" label="📖 Aprender"/><TB id="cards" label="🃏 Cartões"/><TB id="ex" label="✏️ Exercícios"/></div>)}
 
-    {tab==='theory' ? (<div className="fade-in">
+    {tab==='learn' ? (<div className="fade-in">
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">{skill.theory.map((b,i)=>{
         if(b.t==='p') return <p key={i} className="text-slate-700 leading-relaxed mb-3">{b.c}</p>;
         if(b.t==='f') return <div key={i} className="bg-slate-50 rounded-lg py-2 px-3 mb-3"><M tex={b.c} block/></div>;
         if(b.t==='tip') return <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-amber-800 text-sm">💡 {b.c}</div>;
-        if(b.t==='met') return <div key={i} className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5 mb-3">🎓 {b.c}</div>; return null; })}</div>
-      {skill.examples?.length>0 && (<div className="mt-4"><h4 className="text-sm font-bold text-slate-600 mb-2 px-1">Exemplos resolvidos</h4>{skill.examples.map((ex,i)=>(<div key={i} className="bg-white rounded-xl p-4 border border-slate-100 mb-2"><M tex={ex.q} block/><div className="mt-2 space-y-1">{ex.steps.map((s,j)=><div key={j} className="text-sm text-slate-600 flex gap-2"><span className="text-teal-500">{j+1}.</span><M tex={s}/></div>)}</div></div>))}</div>)}
+        if(b.t==='met') return <div key={i} className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5 mb-3">🎓 {b.c}</div>;
+        if(b.t==='err') return <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-red-700 text-sm">⚠️ {b.c}</div>;
+        if(b.t==='why') return <div key={i} className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-indigo-700 text-sm">🎯 <b>Por que importa:</b> {b.c}</div>;
+        return null; })}</div>
+      {skill.examples?.length>0 && (<div className="mt-4"><h4 className="text-sm font-bold text-slate-600 mb-2 px-1">Exemplo guiado (revele passo a passo)</h4>{skill.examples.map((ex,i)=><div key={i} className="mb-2"><GuidedExample ex={ex}/></div>)}</div>)}
       <a href={"https://www.symbolab.com/solver/step-by-step/"+encodeURIComponent(skill.title)} target="_blank" rel="noopener" className="block text-center text-sm text-teal-600 mt-4 underline">🔎 Ver mais exemplos no Symbolab</a>
-      <button onClick={()=>setTab('ex')} className="w-full mt-4 bg-teal-600 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Praticar exercícios →</button>
-    </div>) : (
+      <button onClick={()=>setTab('cards')} className="w-full mt-4 border-2 border-teal-200 text-teal-700 font-semibold py-3 rounded-xl">🃏 Revisar cartões</button>
+      <button onClick={()=>setTab('ex')} className="w-full mt-2 bg-teal-600 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Praticar exercícios →</button>
+    </div>) : tab==='cards' ? (
+      <div className="fade-in"><Flashcards skill={skill}/><button onClick={()=>setTab('ex')} className="w-full mt-4 bg-teal-600 text-white font-semibold py-3.5 rounded-xl">Ir para exercícios →</button></div>
+    ) : (
       <AdaptiveExercises skill={skill} startDiff={startDiff} target={reviewMode?2:3} escalate={!reviewMode} reviewMode={reviewMode} onCorrect={onCorrect} onFinish={finish}/>
     )}
   </div>); }
 
-function Home({app, openSkill, startReview, goTrilha}){ const {user}=app.state; const due=app.dueReviews; const nextSkill=CURR.find(s=>app.state.skills[s.id]?.status==='available'); const hour=new Date().getHours(); const greet=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
+/* ============================ Praticar (treino livre) ============================ */
+function PracticeSession({app, skill, onExit}){
+  // skill pode ser um objeto skill ou null (mistão)
+  const unlocked = CURR.filter(s=> ['available','mastered'].includes(app.state.skills[s.id]?.status));
+  const chooseSkill = ()=> skill || pick(unlocked);
+  const build=()=>{ const s=chooseSkill(); const n=nextExercise(s, [], ri(1,3), true); const it=n.__idx!=null? s.pool[n.__idx] : n; return {s, it}; };
+  const [cur,setCur]=useState(build); const [count,setCount]=useState(0); const [hits,setHits]=useState(0); const [tick,setTick]=useState(0);
+  const handle=(ok)=>{ if(ok){ app.addXp(5,'Prática: '+cur.s.title); setHits(h=>h+1); } setCount(c=>c+1); setCur(build()); setTick(t=>t+1); };
+  return (<div className="max-w-xl mx-auto px-4 pt-3 pb-28">
+    <button onClick={onExit} className="text-slate-500 text-sm mb-2">← Sair da prática</button>
+    <div className="flex items-center justify-between mb-3"><div><div className="font-bold text-slate-800">{skill?skill.title:'Mistão 🎲'}</div><div className="text-xs text-slate-500">Treino livre — infinito, sem pressão</div></div>
+      <div className="text-right"><div className="text-lg font-bold text-teal-600">{hits}/{count}</div><div className="text-[11px] text-slate-400">acertos</div></div></div>
+    {!skill && <div className="text-xs text-purple-600 bg-purple-50 rounded-lg p-2 mb-3">Tópico atual: {cur.s.title}</div>}
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm"><Exercise key={tick} mode="practice" adaptive={false} item={cur.it} onDone={handle}/></div>
+  </div>);
+}
+function Practice({app}){
+  const [sel,setSel]=useState(undefined); // undefined=menu, null=mistão, skill=obj
+  const unlocked = CURR.filter(s=> ['available','mastered'].includes(app.state.skills[s.id]?.status));
+  if(sel!==undefined) return <PracticeSession app={app} skill={sel} onExit={()=>setSel(undefined)}/>;
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
+    <h1 className="text-2xl font-bold text-slate-800 mb-1">Praticar 💪</h1>
+    <p className="text-slate-500 text-sm mb-5">Treino livre e ilimitado. Sem travar avanço — só repetição pra fixar.</p>
+    {unlocked.length===0 ? <p className="text-sm text-slate-400">Desbloqueie tópicos na trilha para praticar.</p> : (<>
+      <button onClick={()=>setSel(null)} className="w-full bg-gradient-to-br from-purple-600 to-purple-500 text-white rounded-2xl p-5 text-left active:scale-[.99] mb-4">
+        <div className="text-2xl">🎲</div><div className="text-lg font-bold">Mistão</div><div className="text-sm opacity-90">Questões sorteadas de todos os tópicos liberados</div></button>
+      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 px-1">Por tópico</h3>
+      <div className="grid gap-2">{unlocked.map(s=>(<button key={s.id} onClick={()=>setSel(s)} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm text-left active:scale-[.99]">
+        <div className="w-10 h-10 rounded-xl bg-teal-100 grid place-items-center text-lg">{s.icon}</div>
+        <div className="flex-1"><div className="font-semibold text-slate-800 text-sm">{s.title}</div><div className="text-xs text-slate-500">{s.gen?'♾️ exercícios infinitos':'banco de exercícios'}</div></div>→</button>))}</div>
+    </>)}
+  </div>);
+}
+
+function Home({app, openSkill, startReview, goTrilha, goPractice}){ const {user}=app.state; const due=app.dueReviews; const nextSkill=CURR.find(s=>app.state.skills[s.id]?.status==='available'); const hour=new Date().getHours(); const greet=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
   return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
     <div className="mb-5"><p className="text-slate-500 text-sm">{greet},</p><h1 className="text-2xl font-bold text-slate-800">{user.name} 👋</h1></div>
     <div className="grid grid-cols-2 gap-3 mb-5">
@@ -555,8 +761,11 @@ function Home({app, openSkill, startReview, goTrilha}){ const {user}=app.state; 
     {due.length>0 && (<div className="mb-5"><h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">🔁 Revisões de hoje <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full">{due.length}</span></h3><div className="grid gap-2">{due.map(r=>{ const sk=CURR.find(s=>s.id===r.skillId); const label=r.stage===0?'no mesmo dia':r.stage===1?'1 semana depois':'1 mês depois';
       return (<button key={r.skillId} onClick={()=>startReview(r.skillId)} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-orange-50 border border-orange-200 text-left active:scale-[.99]"><div className="w-10 h-10 rounded-xl bg-orange-100 grid place-items-center text-lg">{sk.icon}</div><div className="flex-1"><div className="font-semibold text-slate-800 text-sm">{sk.title}</div><div className="text-xs text-orange-600">Revisão {label}</div></div><span className="text-orange-500 text-sm font-semibold">+15 XP</span></button>); })}</div></div>)}
     <h3 className="text-sm font-bold text-slate-700 mb-2">Continuar aprendendo</h3>
-    {nextSkill ? (<button onClick={()=>openSkill(nextSkill.id)} className="w-full bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 text-left active:scale-[.99]"><div className="text-xs opacity-90 mb-1">{nextSkill.mod}</div><div className="flex items-center gap-2"><span className="text-2xl">{nextSkill.icon}</span><span className="text-lg font-bold">{nextSkill.title}</span></div><div className="mt-3 inline-block bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">Iniciar aula →</div></button>) : (<div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 text-center"><div className="text-3xl mb-1">🏆</div><p className="font-semibold text-teal-800">Você concluiu toda a trilha!</p><p className="text-sm text-teal-600 mt-1">Continue nas revisões para fixar tudo.</p></div>)}
-    <button onClick={goTrilha} className="w-full mt-3 text-teal-600 font-medium text-sm py-2">Ver trilha completa →</button>
+    {nextSkill ? (<button onClick={()=>openSkill(nextSkill.id)} className="w-full bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 text-left active:scale-[.99]"><div className="text-xs opacity-90 mb-1">{nextSkill.mod}</div><div className="flex items-center gap-2"><span className="text-2xl">{nextSkill.icon}</span><span className="text-lg font-bold">{nextSkill.title}</span></div><div className="mt-3 inline-block bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">Iniciar aula →</div></button>) : (<div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 text-center"><div className="text-3xl mb-1">🏆</div><p className="font-semibold text-teal-800">Você concluiu toda a trilha!</p><p className="text-sm text-teal-600 mt-1">Continue nas revisões e na prática.</p></div>)}
+    <div className="grid grid-cols-2 gap-2 mt-3">
+      <button onClick={goPractice} className="text-purple-600 font-medium text-sm py-2.5 rounded-xl border border-purple-200 bg-purple-50">💪 Praticar</button>
+      <button onClick={goTrilha} className="text-teal-600 font-medium text-sm py-2.5 rounded-xl border border-teal-200 bg-teal-50">🗺️ Ver trilha</button>
+    </div>
   </div>); }
 
 function Profile({app}){ const {user}=app.state; const done=Object.values(app.state.skills).filter(x=>x.status==='mastered').length; const upcoming=[...app.state.reviews].sort((a,b)=>a.due-b.due).slice(0,6);
@@ -568,8 +777,8 @@ function Profile({app}){ const {user}=app.state; const done=Object.values(app.st
     <div className="bg-slate-100 rounded-xl p-4"><p className="text-xs text-slate-500 mb-2">🧪 Demonstração — avance o tempo para ver as revisões espaçadas (D+7 e D+30):</p><div className="flex gap-2"><button onClick={()=>app.timeTravel(1)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+1 dia</button><button onClick={()=>app.timeTravel(7)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+7 dias</button><button onClick={()=>app.timeTravel(30)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+30 dias</button></div><button onClick={()=>{if(confirm('Zerar todo o progresso?'))app.reset();}} className="w-full mt-3 text-red-500 text-sm py-2">Reiniciar tudo</button></div>
   </div>); }
 
-function TabBar({tab, setTab, dueCount}){ const tabs=[['home','🏠','Início'],['trilha','🗺️','Trilha'],['profile','👤','Perfil']];
-  return (<div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 safe-b z-20"><div className="max-w-xl mx-auto flex">{tabs.map(([id,ic,label])=>(<button key={id} onClick={()=>setTab(id)} className={"flex-1 py-2.5 flex flex-col items-center gap-0.5 relative "+(tab===id?'text-teal-600':'text-slate-400')}><span className="text-xl">{ic}</span><span className="text-[11px] font-medium">{label}</span>{id==='home' && dueCount>0 && <span className="absolute top-1 right-1/3 bg-orange-500 text-white text-[10px] w-4 h-4 grid place-items-center rounded-full">{dueCount}</span>}</button>))}</div></div>); }
+function TabBar({tab, setTab, dueCount}){ const tabs=[['home','🏠','Início'],['trilha','🗺️','Trilha'],['practice','💪','Praticar'],['profile','👤','Perfil']];
+  return (<div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 safe-b z-20"><div className="max-w-xl mx-auto flex">{tabs.map(([id,ic,label])=>(<button key={id} onClick={()=>setTab(id)} className={"flex-1 py-2.5 flex flex-col items-center gap-0.5 relative "+(tab===id?'text-teal-600':'text-slate-400')}><span className="text-xl">{ic}</span><span className="text-[11px] font-medium">{label}</span>{id==='home' && dueCount>0 && <span className="absolute top-1 right-1/4 bg-orange-500 text-white text-[10px] w-4 h-4 grid place-items-center rounded-full">{dueCount}</span>}</button>))}</div></div>); }
 
 /* ============================ App ============================ */
 function App(){ const app=useApp(); const [tab,setTab]=useState('home'); const [lesson,setLesson]=useState(null); const [celebrate,setCelebrate]=useState(false);
@@ -579,8 +788,9 @@ function App(){ const app=useApp(); const [tab,setTab]=useState('home'); const [
   const closeLesson=(completed)=>{ setLesson(null); if(completed){ setCelebrate(true); setTimeout(()=>setCelebrate(false),1500);} };
   return (<div className="min-h-screen"><TopBar app={app}/>
     {lesson ? (<Lesson app={app} skillId={lesson.skillId} reviewMode={lesson.review} onDone={closeLesson}/>) : (<>
-      {tab==='home' && <Home app={app} openSkill={openSkill} startReview={startReview} goTrilha={()=>setTab('trilha')}/>}
+      {tab==='home' && <Home app={app} openSkill={openSkill} startReview={startReview} goTrilha={()=>setTab('trilha')} goPractice={()=>setTab('practice')}/>}
       {tab==='trilha' && <Trilha app={app} openSkill={openSkill}/>}
+      {tab==='practice' && <Practice app={app}/>}
       {tab==='profile' && <Profile app={app}/>}</>)}
     {!lesson && <TabBar tab={tab} setTab={setTab} dueCount={app.dueReviews.length}/>}
     {celebrate && (<div className="fixed inset-0 z-50 grid place-items-center bg-black/30 pointer-events-none"><div className="bg-white rounded-2xl px-8 py-6 text-center pop"><div className="text-5xl">🎉</div><p className="font-bold text-slate-800 mt-2">Muito bem!</p><p className="text-sm text-slate-500">Conteúdo concluído e revisões agendadas.</p></div></div>)}
@@ -607,9 +817,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 <!-- Registra o service worker (habilita instalação como app + offline). Ignora em file:// -->
 <script>
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW falhou:', e); });
-  });
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW falhou:', e); }); });
 }
 </script>
 </body>
