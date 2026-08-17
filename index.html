@@ -77,20 +77,31 @@ function M({ tex, block }) {
 // Rich: renderiza texto+matemática misturados (prosa como texto, fórmulas via KaTeX).
 // Conserta o problema de a questão inteira virar "modo matemático" (que junta as palavras).
 function classTok(t){
-  if(/[\\^_{}=<>√∛∫∑∏π∞ΔΩθλμαβγφρτησω≤≥≠×÷±→∈∉·]/.test(t)) return 'm';
-  if(/^[-+()[\]0-9.,;/*|·%]+$/.test(t)) return 'm';
-  if(/[A-Za-z]\(/.test(t)) return 'm';
-  return 't';
+  // TEXTO só se for palavra pura (letras/acentos, com hífen/apóstrofo internos e pontuação no fim).
+  // Qualquer token com dígito, chave, barra invertida ou símbolo matemático é FÓRMULA — assim
+  // termos como "5x", "6}{x", "\\frac{..." não são separados e o LaTeX não quebra no meio.
+  return /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*[.,;:!?)"'”’…]*$/.test(t) ? 't' : 'm';
 }
 function Rich({s, block}){
   const parts = useMemo(()=>{
-    const words = String(s==null?'':s).split(' ').filter(w=>w!=='');
-    const out=[];
-    for(const w of words){ const c=classTok(w); const last=out[out.length-1]; if(last&&last.c===c) last.v+=' '+w; else out.push({c,v:w}); }
+    // Tokeniza preservando os espaços. Mantém 'depth' de chaves e 'carry' (macro que
+    // espera argumento, ex.: \vec, \sqrt, \text sem {) para NÃO partir a fórmula no meio.
+    const toks = String(s==null?'':s).split(/(\s+)/);
+    const out=[]; let depth=0, carry=false;
+    for(const w of toks){
+      if(w==='') continue;
+      if(/^\s+$/.test(w)){ if(out.length) out[out.length-1].v+=w; else out.push({c:'t',v:w}); continue; }
+      const cls = (depth>0 || carry) ? 'm' : classTok(w);
+      const opens=(w.match(/\{/g)||[]).length, closes=(w.match(/\}/g)||[]).length;
+      depth = Math.max(0, depth+opens-closes);
+      carry = cls==='m' && depth===0 && /\\[a-zA-Z]+$/.test(w);
+      const last=out[out.length-1];
+      if(last && last.c===cls) last.v+=w; else out.push({c:cls,v:w});
+    }
     return out;
   },[s]);
   const El = block ? 'div' : 'span';
-  return <El className={block?'leading-relaxed':undefined}>{parts.map((p,i)=><React.Fragment key={i}>{i>0?' ':''}{p.c==='m'?<M tex={p.v}/>:<span>{p.v}</span>}</React.Fragment>)}</El>;
+  return <El className={block?'leading-relaxed':undefined}>{parts.map((p,i)=><React.Fragment key={i}>{p.c==='m'?<M tex={p.v}/>:<span>{p.v}</span>}</React.Fragment>)}</El>;
 }
 function T({s}){ return <Rich s={s}/>; }
 
