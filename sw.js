@@ -3,7 +3,7 @@
    - Navegação (HTML): network-first (pega atualizações) com fallback ao cache (offline).
    - Demais (JS/CSS/CDN/ícones): stale-while-revalidate (rápido e atualiza em 2º plano).
    Suba a versão do CACHE para invalidar tudo após um deploy. */
-const CACHE = 'trilha-calculo-v3';
+const CACHE = 'trilha-estudos-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

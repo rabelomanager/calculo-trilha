@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f766e" />
-<title>Trilha de Cálculo</title>
+<title>Trilha de Estudos</title>
 
 <!-- PWA / instalável no celular -->
 <link rel="manifest" href="manifest.webmanifest" />
@@ -12,9 +12,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Cálculo" />
+<meta name="apple-mobile-web-app-title" content="Trilha" />
 <meta name="mobile-web-app-capable" content="yes" />
-<meta name="description" content="Do fundamental ao Cálculo I — diagnóstico, trilha adaptativa e revisões espaçadas." />
+<meta name="description" content="Cálculo e Ciências Aeroespaciais — diagnóstico adaptativo, trilha, exercícios infinitos e revisões espaçadas." />
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -27,7 +27,7 @@
   :root { color-scheme: light; }
   * { -webkit-tap-highlight-color: transparent; }
   html, body { overscroll-behavior-y: contain; }
-  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#f6f7f9; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#f6f7f9; background-image: linear-gradient(180deg,#ecfdf5 0, rgba(246,247,249,0) 260px); background-attachment: fixed; }
   button { touch-action: manipulation; }
   .fade-in { animation: fade .25s ease-out both; }
   @keyframes fade { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
@@ -74,7 +74,25 @@ function M({ tex, block }) {
   }, [tex, block]);
   return block ? <div className="my-2 overflow-x-auto text-center" ref={ref}>{tex}</div> : <span ref={ref}>{tex}</span>;
 }
-function T({s}){ return hasTex(s) ? <M tex={s}/> : <span>{s}</span>; }
+// Rich: renderiza texto+matemática misturados (prosa como texto, fórmulas via KaTeX).
+// Conserta o problema de a questão inteira virar "modo matemático" (que junta as palavras).
+function classTok(t){
+  if(/[\\^_{}=<>√∛∫∑∏π∞ΔΩθλμαβγφρτησω≤≥≠×÷±→∈∉·]/.test(t)) return 'm';
+  if(/^[-+()[\]0-9.,;/*|·%]+$/.test(t)) return 'm';
+  if(/[A-Za-z]\(/.test(t)) return 'm';
+  return 't';
+}
+function Rich({s, block}){
+  const parts = useMemo(()=>{
+    const words = String(s==null?'':s).split(' ').filter(w=>w!=='');
+    const out=[];
+    for(const w of words){ const c=classTok(w); const last=out[out.length-1]; if(last&&last.c===c) last.v+=' '+w; else out.push({c,v:w}); }
+    return out;
+  },[s]);
+  const El = block ? 'div' : 'span';
+  return <El className={block?'leading-relaxed':undefined}>{parts.map((p,i)=><React.Fragment key={i}>{i>0?' ':''}{p.c==='m'?<M tex={p.v}/>:<span>{p.v}</span>}</React.Fragment>)}</El>;
+}
+function T({s}){ return <Rich s={s}/>; }
 
 const DIFF = {
   1:{n:'Fácil', emo:'🟢', cls:'text-green-700 bg-green-50 border-green-200'},
@@ -173,9 +191,11 @@ const CURR = [
       P('Domínio = entradas permitidas; Imagem = saídas obtidas.'),
       F('f(x)=\\sqrt{x}\\Rightarrow \\text{Domínio}: x\\ge 0'),
       ERR('Pegadinha do domínio: o que "quebra" a função é divisão por zero e raiz de número negativo.'),
+      P('Classificação: injetora (cada saída vem de um único x), sobrejetora (imagem = contradomínio) e bijetora (as duas juntas). Só a função bijetora tem inversa.'),
+      P('A inversa f^{-1} desfaz f: f(f^{-1}(x))=x e f^{-1}(f(x))=x. No gráfico, f^{-1} é a reflexão de f na reta y=x — o ponto (a,b) vira (b,a).'),
       WHY('Limite e continuidade só fazem sentido quando você sabe onde a função existe.') ],
     examples:[ {q:'f(x)=\\frac{1}{x-2}', steps:['Denominador ≠ 0','Domínio: x\\ne 2']} ],
-    cards:[['Domínio de \\sqrt{x}','x \\ge 0'],['Domínio de \\frac{1}{x}','x \\ne 0']],
+    cards:[['Domínio de \\sqrt{x}','x \\ge 0'],['Domínio de \\frac{1}{x}','x \\ne 0'],['Função inversa f^{-1}','desfaz f: f(f^{-1}(x))=x'],['Só tem inversa se','a função for bijetora']],
     pool:[
       nu(1,'Se f(x)=x^2+1, quanto é f(3)?',10,0.001,'Substitua x por 3.','9+1=10.'),
       mc(1,'Domínio de f(x)=\\sqrt{x-3}?',['x\\le 3','x\\ge 3','x\\ne 3','todos os reais'],1,'Dentro da raiz ≥ 0.','x≥3.'),
@@ -183,6 +203,13 @@ const CURR = [
       mc(2,'Domínio de f(x)=\\frac{1}{x-2}?',['x\\ge 2','x\\ne 2','x\\le 2','x>0'],1,'Denominador ≠ 0.','x≠2.'),
       nu(2,'Se f(x)=2x-1, para qual x temos f(x)=5?',3,0.001,'Resolva 2x-1=5.','x=3.'),
       mc(3,'Domínio de f(x)=\\frac{\\sqrt{x}}{x-1}?',['x\\ge 0','x\\ge 0,\\ x\\ne 1','x\\ne 1','x>1'],1,'Raiz pede x≥0 e denominador ≠0.','x≥0 e x≠1.'),
+      mcS(2,'Qual o domínio de f(x)=\\frac{x}{x^4-16}?',['x\\ne 2','x\\ne \\pm 2','x\\ne 4','todos os reais'],1,'x⁴-16=0 quando x=±2.','Domínio: x ≠ ±2.','Lista 1 · C1'),
+      mcS(3,'Qual o domínio de f(x)=\\ln(x^2-3x)?',['x>0','0<x<3','x<0 \\text{ ou } x>3','todos os reais'],2,'ln pede argumento > 0.','x²-3x>0 ⇒ x<0 ou x>3.','Lista 1 · C1'),
+      nuS(2,'Caixa sem tampa de papelão 18×40, cortando quadrados de lado x nos cantos: V(x)=(40-2x)(18-2x)x. Calcule V(3). (cm³)',1224,1,'Substitua x=3.','(34)(12)(3) = 1224 cm³.','Lista 1 · C1'),
+      nuS(2,'(OBMEP) Uma tecla transforma n em \\frac{2n}{n-2}. Se o visor mostra 6, que número aparece?',3,0.001,'Calcule 2·6/(6-2).','12/4 = 3.','Lista 1 · C1'),
+      nuS(3,'(OBMEP) Na tecla n\\mapsto\\frac{2n}{n-2}, qual número NUNCA aparece no visor?',2,0.001,'Analise a imagem da função.','A saída nunca é 2.','Lista 1 · C1'),
+      nuS(2,'Dois resistores em paralelo (5 Ω e R Ω): f(R)=\\frac{5R}{R+5}. Calcule f(5). (Ω)',2.5,0.01,'5·5/(5+5).','25/10 = 2,5 Ω.','Lista 1 · C1'),
+      nuS(3,'No circuito f(R)=\\frac{5R}{R+5}, para qual R a resistência total é 3 Ω?',7.5,0.05,'Resolva 5R/(R+5)=3.','2R=15 ⇒ R = 7,5 Ω.','Lista 1 · C1'),
     ]},
   { id:'afim', mod:'Ensino Médio', level:'med', title:'Função afim (1º grau)', icon:'📈', method:'Leitura de gráfico', gen:[genAfim],
     theory:[ MET('Ligar fórmula ↔ reta no gráfico o tempo todo.'),
@@ -251,6 +278,8 @@ const CURR = [
       P('Limite: para onde f(x) se aproxima quando x→a, mesmo que f não exista em a.'), F('\\lim_{x\\to a} f(x)=L'),
       P('Ex.: f(x)=\\frac{x^2-1}{x-1} não existe em x=1 (dá 0/0), mas se aproxima de 2.'),
       ERR('Erro comum: achar que limite é "o valor da função em a". É o valor de CHEGADA na vizinhança de a.'),
+      TIP('Definição formal (ε-δ): dizemos \\lim_{x\\to a}f(x)=L quando, para todo ε>0, existe δ>0 tal que |f(x)-L|<ε sempre que 0<|x-a|<δ. É a versão rigorosa de "chegar perto".'),
+      TIP('Fatorar é a arma nº 1 aqui. Produtos notáveis: a^2-b^2=(a-b)(a+b); (a\\pm b)^2=a^2\\pm 2ab+b^2; a^3-b^3=(a-b)(a^2+ab+b^2).'),
       WHY('Todo o cálculo (derivada e integral) é definido por limites — é a fundação.') ],
     examples:[ {q:'\\lim_{x\\to 3}(2x+1)', steps:['Contínua: substitua','2·3+1=7']},
       {q:'\\lim_{x\\to 1}\\frac{x^2-1}{x-1}', steps:['\\frac{(x-1)(x+1)}{x-1}','cancela (x-1)','\\lim(x+1)=2']} ],
@@ -267,12 +296,18 @@ const CURR = [
     ]},
   { id:'lim-calc', mod:'Cálculo I — Limites', level:'sup', title:'Cálculo de limites e indeterminações', icon:'🧮', method:'Passo a passo + fatoração', gen:[genLim],
     theory:[ MET('Guidorizzi: reconhecer o tipo de indeterminação e escolher a técnica.'),
-      P('Limite da soma/produto/quociente = operação dos limites (denominador ≠ 0).'),
+      P('As leis do limite deixam quebrar a expressão em partes:'),
+      F('\\lim(f\\pm g)=L\\pm M,\\ \\lim(kf)=kL,\\ \\lim(fg)=LM,\\ \\lim\\tfrac{f}{g}=\\tfrac{L}{M}\\,(M\\ne0)'),
+      P('Em polinômios basta substituir: \\lim_{x\\to c}P(x)=P(c); em racionais, \\lim_{x\\to c}\\frac{P(x)}{Q(x)}=\\frac{P(c)}{Q(c)} se Q(c)\\ne0.'),
       P('Em 0/0: fatoração, conjugado (racionalização) ou simplificação.'), F('\\lim_{x\\to 0}\\frac{\\sin x}{x}=1'),
+      P('Limites no infinito (x→±∞) de racionais: divida numerador e denominador pela maior potência de x — os termos com 1/x tendem a 0. Ex.: \\lim_{x\\to\\infty}\\frac{2x-5}{x+8}=2.'),
+      P('Assíntota horizontal: y=L é assíntota horizontal do gráfico se \\lim_{x\\to\\pm\\infty}f(x)=L.'),
+      F('\\lim_{x\\to\\pm\\infty}\\left(1+\\tfrac{1}{x}\\right)^x=e,\\quad \\lim_{x\\to\\infty}\\left(1+\\tfrac{a}{x}\\right)^x=e^{a}'),
+      TIP('Teorema do Confronto (Sanduíche): se g(x)\\le f(x)\\le h(x) perto de a e \\lim g=\\lim h=L, então \\lim f=L. É assim que se mostra \\lim_{x\\to 0}x\\sin(1/x)=0.'),
       ERR('Erro comum: parar em "0/0" achando que é o resultado. 0/0 é um convite a manipular, não uma resposta.'),
       WHY('Saber quebrar indeterminações é o que permite calcular derivadas pela definição.') ],
     examples:[ {q:'\\lim_{x\\to 0}\\frac{\\sqrt{x+1}-1}{x}', steps:['Multiplica pelo conjugado','\\frac{1}{\\sqrt{x+1}+1}','substitui: \\frac12']} ],
-    cards:[['\\lim_{x\\to 0}\\frac{\\sin x}{x}','1'],['Técnica p/ raiz em 0/0','multiplicar pelo conjugado']],
+    cards:[['\\lim_{x\\to 0}\\frac{\\sin x}{x}','1'],['Técnica p/ raiz em 0/0','multiplicar pelo conjugado'],['\\lim_{x\\to\\infty}(1+\\tfrac1x)^x','e'],['Teorema do Confronto','g\\le f\\le h e limites iguais ⇒ mesmo limite']],
     pool:[
       nu(1,'Calcule \\lim_{x\\to 3}\\frac{x^2-9}{x-3}.',6,0.001,'Fatore.','lim(x+3)=6.'),
       nu(2,'Calcule \\lim_{x\\to 0}\\frac{\\sin(2x)}{x}.',2,0.001,'Escreva 2·sen(2x)/(2x).','=2.'),
@@ -282,21 +317,28 @@ const CURR = [
       nuS(2,'Calcule \\lim_{x\\to -3}\\frac{x^2-9}{x+3}.',-6,0.001,'x²-9=(x-3)(x+3).','x-3 → -6.','Guidorizzi'),
       nuS(3,'Calcule \\lim_{x\\to 2}\\frac{x^3-8}{x-2}.',12,0.001,'x³-8=(x-2)(x²+2x+4).','→ 12.','Guidorizzi'),
       nuS(3,'Calcule \\lim_{t\\to 0}\\frac{\\sqrt{t^2+9}-3}{t^2}. (decimal)',0.1667,0.01,'Conjugado \\sqrt{t^2+9}+3.','1/6 ≈ 0,167.','Stewart'),
+      {d:2,type:'tf',q:'Se g(x)\\le f(x)\\le h(x) e \\lim g=\\lim h=5, então \\lim f=5. Verdadeiro? (Teorema do Confronto)',a:true,hint:'A função fica "espremida".',sol:'Verdadeiro — o Sanduíche força f a ir para 5.',src:'Revisão C1 · C1'},
+      nuS(3,'Calcule \\lim_{x\\to\\infty}\\left(1+\\frac{1}{x}\\right)^x. (decimal, 3 casas)',2.718,0.01,'É a própria definição do número e.','e ≈ 2,718.','Revisão P2 · C1'),
+      mcS(2,'y=2 é assíntota horizontal do gráfico de f quando:',['f(2)=0','\\lim_{x\\to\\infty}f(x)=2','f(x)=2 sempre','x=2'],1,'Assíntota horizontal é limite no infinito.','lim_{x→∞}f(x)=2.','Revisão C1 · C1'),
     ]},
   { id:'cont', mod:'Cálculo I — Limites', level:'sup', title:'Continuidade', icon:'🪢', method:'Desenhar sem tirar o lápis',
     theory:[ MET('Imagem intuitiva + definição em três condições.'),
       P('Contínua em a = sem "buraco" nem "salto". Formalmente:'), F('\\lim_{x\\to a} f(x)=f(a)'),
       P('Exige: (1) f(a) existe; (2) o limite existe; (3) são iguais.'),
       ERR('Pegadinha: o limite pode existir e a função não ser contínua (se f(a) for diferente do limite).'),
+      P('Teorema do Valor Intermediário (TVI): se f é contínua em [a,b] e K está entre f(a) e f(b), então existe c∈(a,b) com f(c)=K.'),
+      P('Corolário (Bolzano): se f é contínua em [a,b] e f(a)·f(b)<0, então existe c∈(a,b) com f(c)=0 — ou seja, há uma raiz no intervalo.'),
       WHY('Só funções contínuas garantem "substituir e pronto" — e todo polinômio é contínuo.') ],
     examples:[ {q:'f(x)=x^2 \\text{ em } x=2', steps:['f(2)=4 e \\lim=4','iguais ⇒ contínua']} ],
-    cards:[['Contínua em a','\\lim_{x\\to a}f=f(a)'],['Polinômios','contínuos em todos os reais']],
+    cards:[['Contínua em a','\\lim_{x\\to a}f=f(a)'],['Polinômios','contínuos em todos os reais'],['TVI','contínua atinge todo valor entre f(a) e f(b)'],['Bolzano','f(a)·f(b)<0 ⇒ existe raiz em (a,b)']],
     pool:[
       mc(1,'Continuidade em a exige que:',['f(a) não exista','\\lim_{x\\to a}f(x)=f(a)','f seja crescente','a=0'],1,'Limite bate com o valor.','lim = f(a).'),
       mc(2,'Onde f(x)=x^3-2x é contínua?',['só em x=0','nos positivos','em todos os reais','em nenhum'],2,'Polinômios são contínuos.','Todos os reais.'),
       tf(2,'Se \\lim_{x\\to a}f(x)=3 e f(a)=5, f é contínua em a. Verdadeiro?',false,'Limite ≠ valor.','Falso: descontínua.'),
       mc(3,'f(x)=\\frac{x^2-1}{x-1} tem descontinuidade em x=1 do tipo:',['salto','removível','infinita','nenhuma'],1,'0/0 mas o limite existe.','Removível.'),
       mcS(1,'Se f é contínua em p, então \\lim_{x\\to p} f(x) é:',['0','f(p)','p','não existe'],1,'Definição.','f(p).','Guidorizzi'),
+      {d:3,type:'tf',q:'Se \\lim_{x\\to a}f(x) existe, então f é necessariamente contínua em a. Verdadeiro?',a:false,hint:'O limite pode existir sem f(a) existir ou sem ser igual a ele.',sol:'Falso — continuidade exige também f(a) definido e igual ao limite.',src:'Simulado P2 · C1'},
+      mcS(2,'Se f é contínua em [a,b] e f(a)·f(b)<0, então:',['f é crescente','existe c em (a,b) com f(c)=0','f(a)=f(b)','f é constante'],1,'Teorema de Bolzano (corolário do TVI).','Há pelo menos uma raiz no intervalo.','Revisão C1 · C1'),
     ]},
   { id:'der-def', mod:'Cálculo I — Derivadas', level:'sup', title:'Derivada: definição e ideia', icon:'📉', method:'Reta secante → tangente',
     theory:[ MET('Thomas: partir da inclinação da secante e "espremer" o intervalo até a tangente.'),
@@ -315,15 +357,26 @@ const CURR = [
       nu(3,'Para f(x)=x^2+2x, pela definição f\'(1)=?',4,0.001,'f\'(x)=2x+2.','4.'),
       nuS(2,'Sendo f(x)=x^2, calcule f\'(4) pela definição.',8,0.001,'f\'(p)=2p.','8.','Guidorizzi'),
       nuS(3,'Sendo f(x)=\\frac{1}{x}, calcule f\'(1) pela definição.',-1,0.001,'f\'(x)=-1/x².','-1.','Stewart'),
+      mcS(2,'Para f(x)=x^2, a razão \\frac{f(x)-f(a)}{x-a} simplifica para:',['x-a','x+a','2x','a^2'],1,'x²-a²=(x-a)(x+a).','x+a; e o limite x→a dá 2a = f\'(a).','Lista 1 · C1'),
+      mcS(3,'Para f(x)=\\frac{1}{x}, a razão \\frac{f(x)-f(a)}{x-a} simplifica para:',['\\frac{1}{ax}','-\\frac{1}{ax}','\\frac{1}{x-a}','-ax'],1,'Some as frações do numerador.','-1/(ax); o limite x→a dá -1/a².','Lista 1 · C1'),
+      {d:2,type:'tf',q:'A função f(x)=|x| é derivável em x=0. Verdadeiro?',a:false,hint:'As derivadas laterais em 0 são -1 e +1 (o "bico").',sol:'Falso — há um bico em x=0; derivadas laterais diferentes.',src:'Simulado S2 · C1'},
+      mcS(2,'A função f(x)=|x| é derivável em quais pontos?',['\\mathbb{R}','\\mathbb{R}\\setminus\\{0\\}','só em x=0','em nenhum'],1,'Só falha no bico.','Em todos os reais, exceto x=0.','Simulado S2 · C1'),
     ]},
   { id:'der-reg', mod:'Cálculo I — Derivadas', level:'sup', title:'Regras de derivação', icon:'🛠️', method:'Kit de regras', gen:[genDer],
     theory:[ MET('Montar um "kit" de regras e treinar reconhecimento de padrão.'),
+      F('(c)\'=0,\\quad (c\\,f)\'=c\\,f\',\\quad (f\\pm g)\'=f\'\\pm g\''),
       F('(x^n)\'=n\\,x^{n-1}'), F('(\\sin x)\'=\\cos x,\\ (\\cos x)\'=-\\sin x,\\ (e^x)\'=e^x,\\ (\\ln x)\'=\\tfrac1x'),
+      F('(a^x)\'=a^x\\ln a,\\qquad (\\log_a x)\'=\\frac{1}{x\\ln a}'),
+      F('(\\tan x)\'=\\sec^2 x,\\ (\\sec x)\'=\\sec x\\tan x,\\ (\\cot x)\'=-\\csc^2 x,\\ (\\csc x)\'=-\\csc x\\cot x'),
+      F('(\\arcsin x)\'=\\frac{1}{\\sqrt{1-x^2}},\\quad (\\arctan x)\'=\\frac{1}{1+x^2}'),
       F('(uv)\'=u\'v+uv\';\\quad [f(g(x))]\'=f\'(g)\\,g\''),
+      TIP('Derivação implícita: quando y é dado implicitamente (ex.: x^2+y^2=5), derive os dois lados em x lembrando que y=y(x) — pela cadeia, \\frac{d}{dx}y^2=2y\\,y\' — e isole y\'.'),
+      TIP('Derivação logarítmica (para x^x, x^{\\sin x}, etc.): tome ln dos dois lados e derive. Resultado: (x^x)\'=x^x(\\ln x+1).'),
+      F('(f^{-1})\'(x)=\\frac{1}{f\'(f^{-1}(x))}\\quad\\text{(derivada da função inversa)}'),
       ERR('Erro comum na cadeia: esquecer de multiplicar pela derivada de dentro. (sen(x²))\' = cos(x²)·2x, não só cos(x²).'),
       WHY('A regra da cadeia é a mais usada de todas — quase todo problema real tem função composta.') ],
     examples:[ {q:'\\frac{d}{dx}x^3', steps:['n·x^{n-1}','=3x^2']}, {q:'\\frac{d}{dx}\\sin(x^2)', steps:['fora: cos(x²)','×dentro: 2x','=2x\\cos(x^2)']} ],
-    cards:[['(x^n)\'','n x^{n-1}'],['(\\sin x)\'','\\cos x'],['(e^x)\'','e^x'],['Regra da cadeia','f\'(g)\\cdot g\'']],
+    cards:[['(x^n)\'','n x^{n-1}'],['(\\sin x)\'','\\cos x'],['(\\tan x)\'','\\sec^2 x'],['(e^x)\'','e^x'],['(a^x)\'','a^x\\ln a'],['(\\log_a x)\'','\\frac{1}{x\\ln a}'],['(\\arctan x)\'','\\frac{1}{1+x^2}'],['Regra da cadeia','f\'(g)\\cdot g\'']],
     pool:[
       mc(1,'A derivada de \\sin x é:',['\\cos x','-\\cos x','\\sin x','-\\sin x'],0,'Seno → cosseno.','cos x.'),
       nu(1,'Se f(x)=x^4, quanto é f\'(2)? (f\'=4x³)',32,0.001,'4·2³.','32.'),
@@ -332,6 +385,16 @@ const CURR = [
       er(3,'Ache o erro em \\frac{d}{dx}\\sin(x^2):',['Deriva o de fora: \\cos(x^2)','Pronto: \\cos(x^2)'],1,'Falta a regra da cadeia.','Faltou ×2x. Erro no passo 2.'),
       nu(3,'Se f(x)=(x^2+1)^3, pela cadeia f\'(1)=?',24,0.001,'3(x²+1)²·2x.','3·4·2=24.'),
       nuS(2,'Derive f(x)=x^3-3x^2+4x e calcule f\'(1).',1,0.001,'f\'=3x²-6x+4.','3-6+4=1.','Stewart'),
+      nuS(3,'Na curva x^2+y^2=5, qual a inclinação da reta tangente no ponto (1,2)? (derivação implícita)',-0.5,0.01,'Derive implícito: 2x+2y·y\'=0 ⇒ y\'=-x/y.','-1/2 = -0,5.','Simulado P2 · C1'),
+      mc(2,'A derivada de \\tan x é:',['\\sec^2 x','\\sec x\\tan x','-\\csc^2 x','\\cos x'],0,'Tabela trigonométrica.','sec²x.'),
+      mc(3,'A derivada de \\arctan x é:',['\\frac{1}{\\sqrt{1-x^2}}','\\frac{1}{1+x^2}','-\\frac{1}{1+x^2}','\\arctan x'],1,'Derivada da arco-tangente.','1/(1+x²).'),
+      nuS(2,'Para f(x)=3x^5-7x^3+2x-9, calcule f\'(1).',-4,0.01,'f\'=15x⁴-21x²+2.','15-21+2 = -4.','Lista Derivadas · C1'),
+      nuS(2,'Qual a derivada de e^{2x} avaliada em x=0?',2,0.01,'(e^{2x})\'=2e^{2x}.','2·e⁰ = 2.','Lista Derivadas · C1'),
+      mcS(3,'A derivada de x^2\\sin x é:',['2x\\sin x','x^2\\cos x','2x\\sin x + x^2\\cos x','2x\\cos x'],2,'Regra do produto.','2x·sen x + x²·cos x.','Lista Derivadas · C1'),
+      mcS(3,'A derivada de \\arctan(x^3) é:',['\\frac{3x^2}{1+x^6}','\\frac{1}{1+x^3}','\\frac{3x^2}{1+x^3}','3x^2'],0,'Cadeia: \\frac{1}{1+u^2}\\cdot u\', com u=x³.','3x²/(1+x⁶).','Lista Derivadas · C1'),
+      mcS(3,'Para f(x)=x^x (x>0), f\'(x) é:',['x^x\\ln x','x^{x-1}','x^x(\\ln x+1)','x^x\\cdot x'],2,'Derivação logarítmica.','x^x(ln x + 1).','Simulado S2 · C1'),
+      mcS(3,'A derivada da função inversa (f^{-1})\'(x) é:',['\\frac{1}{f\'(x)}','\\frac{1}{f\'(f^{-1}(x))}','f\'(f^{-1}(x))','f^{-1}(x)\\,f\'(x)'],1,'Regra da derivada da inversa.','1/f\'(f⁻¹(x)).','Simulado S2 · C1'),
+      mcS(3,'Na curva x^2+xy+y^2=7, \\frac{dy}{dx} é:',['-\\frac{2x+y}{x+2y}','\\frac{2x+y}{x+2y}','-\\frac{x+2y}{2x+y}','2x+y'],0,'Derive implícito e isole y\'.','-(2x+y)/(x+2y).','Lista Derivadas · C1'),
     ]},
   { id:'der-quo', mod:'Cálculo I — Derivadas', level:'sup', title:'Regra do quociente', icon:'➗', method:'Fórmula + mnemônico',
     theory:[ MET('Um mnemônico salva: "baixo deriva alto, menos alto deriva baixo, sobre baixo ao quadrado".'),
@@ -351,6 +414,7 @@ const CURR = [
     theory:[ MET('Problema real → função → derivar → zerar → interpretar.'),
       P('Em máx/mín a tangente é horizontal ⇒ derivada zero.'), F('f\'(x)=0 \\Rightarrow \\text{ponto crítico}'),
       P('2ª derivada dá a concavidade: f\'\'>0 mínimo, f\'\'<0 máximo.'),
+      P('Derivadas sucessivas: f^{(n)} é derivar n vezes. A 2ª derivada mede a concavidade — f\'\'>0 côncava para cima, f\'\'<0 para baixo; onde f\'\' muda de sinal há ponto de inflexão.'),
       ERR('Erro comum: achar que todo ponto crítico é máx/mín. Pode ser ponto de inflexão (ex.: f(x)=x³ em 0).'),
       WHY('Otimização (custo mínimo, lucro máximo, menor material) é derivada aplicada ao mundo.') ],
     examples:[ {q:'\\min de x^2-4x+7', steps:['f\'=2x-4','2x-4=0','x=2']} ],
@@ -362,6 +426,9 @@ const CURR = [
       tf(2,'Todo ponto onde f\'(x)=0 é máximo ou mínimo. Verdadeiro?',false,'Pode ser inflexão.','Falso (ex.: x³).'),
       nu(3,'f(x)=x^3-3x tem ponto crítico positivo em x=?',1,0.001,'f\'=3x²-3=0.','x=1.'),
       nuS(3,'A função f(x)=x^3-3x+1 tem mínimo local em qual x?',1,0.001,'f\'=3x²-3=0 ⇒ x=±1.','x=1.','Stewart'),
+      mcS(3,'Qual a derivada de ordem 2026 de f(x)=\\sin x? (as derivadas do seno se repetem a cada 4)',['-\\cos x','\\sin x','-\\sin x','\\cos x'],2,'2026 ÷ 4 deixa resto 2 → é como a 2ª derivada.','(\\sin x)\'\'=-\\sin x.','Simulado P2 · C1'),
+      nuS(3,'Pelo TVM, para f(x)=\\sqrt{x} em [1,4], o c com f\'(c)=\\frac{f(4)-f(1)}{3} é? (decimal)',2.25,0.05,'f\'(c)=\\frac{1}{2\\sqrt{c}}=\\frac13.','c = 9/4 = 2,25.','Simulado S2 · C1'),
+      nuS(3,'A função f(x)=x^4-4x^3 tem inflexão em x=0 e em qual outro x? (f\'\'=12x²-24x)',2,0.01,'12x²-24x=0 ⇒ x=0 ou 2.','x = 2.','Simulado S2 · C1'),
     ]},
   { id:'lhop', mod:'Cálculo I — Derivadas', level:'sup', title:'Regra de L\'Hôpital', icon:'🩺', method:'Atalho para 0/0 e ∞/∞',
     theory:[ MET('Quando cair em 0/0 ou ∞/∞, derive em cima e embaixo — separadamente — e tente de novo.'),
@@ -377,15 +444,20 @@ const CURR = [
       tf(2,'Pode usar L\'Hôpital em \\lim_{x\\to 0}\\frac{\\cos x}{x+1}. Verdadeiro?',false,'Dá 1/1, não é indeterminação.','Falso.'),
       nu(3,'Por L\'Hôpital, \\lim_{x\\to 0}\\frac{e^x-1}{x} = ?',1,0.001,'Derive: e^x / 1.','e⁰=1.'),
       od(3,'Ordene o uso de L\'Hôpital em \\lim_{x\\to 0}\\frac{e^x-1}{x}:',['Verifica: dá 0/0','Deriva em cima e embaixo: \\frac{e^x}{1}','Substitui: e^0=1'],'Primeiro confirme a indeterminação.'),
+      nuS(3,'Por L\'Hôpital, \\lim_{x\\to 0^+}\\frac{\\ln(1+x)}{\\sqrt{x}} = ?',0,0.01,'Derive: \\frac{1/(1+x)}{1/(2\\sqrt{x})}=\\frac{2\\sqrt{x}}{1+x}.','→ 0.','Simulado P2 · C1'),
     ]},
   { id:'int-ind', mod:'Cálculo I — Integrais', level:'sup', title:'Integral indefinida (antiderivada)', icon:'🔄', method:'Inversa da derivada',
     theory:[ MET('A integral "desfaz" a derivada.'),
       P('Integrar = achar F tal que F\'=f. Como (constante)\'=0, aparece +C.'),
-      F('\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C\\ (n\\ne-1)'), F('\\int \\cos x\\,dx=\\sin x+C,\\ \\int e^x\\,dx=e^x+C,\\ \\int\\frac1x dx=\\ln|x|+C'),
+      F('\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C\\ (n\\ne-1)'), F('\\int \\cos x\\,dx=\\sin x+C,\\ \\int \\sin x\\,dx=-\\cos x+C'),
+      F('\\int e^x\\,dx=e^x+C,\\qquad \\int\\frac1x\\,dx=\\ln|x|+C'),
+      F('\\int\\frac{dx}{\\sqrt{1-x^2}}=\\arcsin x+C,\\qquad \\int\\frac{dx}{1+x^2}=\\arctan x+C'),
+      P('Integração por partes (para produtos de funções): \\int u\\,dv = uv - \\int v\\,du.'),
+      TIP('Para escolher u nas partes, use a prioridade LIATE: Logarítmica, Inversa trigonométrica, Algébrica (polinômio), Trigonométrica, Exponencial — a que aparecer primeiro vira u.'),
       ERR('Erro comum: esquecer o +C na integral indefinida. Toda antiderivada tem uma família de constantes.'),
       WHY('Antiderivada é o coração da integral definida (área) via Teorema Fundamental.') ],
     examples:[ {q:'\\int 2x\\,dx', steps:['sobe 1 no expoente, divide','=x^2+C']} ],
-    cards:[['\\int x^n dx','\\frac{x^{n+1}}{n+1}+C'],['\\int \\frac{1}{x}dx','\\ln|x|+C'],['\\int e^x dx','e^x+C']],
+    cards:[['\\int x^n dx','\\frac{x^{n+1}}{n+1}+C'],['\\int \\frac{1}{x}dx','\\ln|x|+C'],['\\int e^x dx','e^x+C'],['Integração por partes','\\int u\\,dv=uv-\\int v\\,du'],['LIATE (escolha de u)','Log · Inv-trig · Alg · Trig · Exp']],
     pool:[
       mc(1,'\\int x^2\\,dx = ?',['2x+C','\\frac{x^3}{3}+C','x^3+C','\\frac{x^2}{2}+C'],1,'Sobe 1 no expoente e divide.','x³/3 + C.'),
       tf(1,'A integral indefinida sempre leva "+C". Verdadeiro?',true,'Família de antiderivadas.','Verdadeiro.'),
@@ -393,11 +465,13 @@ const CURR = [
       nu(2,'Se \\int f\\,dx=x^3+C, então f(2)=? (f=3x²)',12,0.001,'Derive x³.','3·4=12.'),
       mcS(2,'\\int \\frac{1}{x}\\,dx = ?',['\\ln|x|+C','x^{-2}+C','-\\frac{1}{x^2}+C','1+C'],0,'Caso n=-1.','ln|x| + C.','Stewart'),
       nu(3,'Se F(x)=\\int(3x^2+2x)dx, quanto é F(1)-F(0)? (F=x³+x²)',2,0.001,'F=x³+x².','2.'),
+      mc(3,'\\int \\frac{dx}{1+x^2} = ?',['\\ln(1+x^2)+C','\\arctan x+C','\\arcsin x+C','\\frac{1}{1+x^2}+C'],1,'Integral que dá arco-tangente.','arctan x + C.'),
     ]},
   { id:'int-sub', mod:'Cálculo I — Integrais', level:'sup', title:'Integração por substituição', icon:'🔁', method:'Cadeia ao contrário',
     theory:[ MET('É a regra da cadeia de trás pra frente: escolha u = "a função de dentro".'),
       F('\\int f(g(x))g\'(x)\\,dx = \\int f(u)\\,du,\\quad u=g(x)'),
       P('Troque tudo por u e du; integre; volte para x.'),
+      TIP('Substituição trigonométrica (para raízes): use x=a\\sin\\theta em \\sqrt{a^2-x^2}; x=a\\tan\\theta em \\sqrt{a^2+x^2}; x=a\\sec\\theta em \\sqrt{x^2-a^2}.'),
       ERR('Erro comum: esquecer de trocar o dx por du (não dá pra misturar x e u na mesma integral).'),
       WHY('Substituição é a técnica de integração mais usada — destrava a maioria das integrais reais.') ],
     examples:[ {q:'\\int 2x(x^2+1)^3\\,dx', steps:['u=x^2+1, du=2x\\,dx','\\int u^3\\,du=\\frac{u^4}{4}','=\\frac{(x^2+1)^4}{4}+C']} ],
@@ -412,10 +486,11 @@ const CURR = [
     theory:[ MET('Área por retângulos (Riemann) → atalho pelo Teorema Fundamental.'),
       P('Integral definida = área com sinal entre a curva e o eixo x, de a a b.'), F('\\int_a^b f(x)\\,dx = F(b)-F(a)'),
       P('TFC: integrar é o inverso de derivar; ache F, avalie em b e a, subtraia.'),
+      F('\\frac{d}{dx}\\int_a^x f(t)\\,dt = f(x)\\quad\\text{(TFC, parte 2)}'),
       ERR('Erro comum: inverter a ordem F(a)-F(b), ou esquecer que área abaixo do eixo conta como negativa.'),
       WHY('Área, volume, trabalho, probabilidade — tudo é integral definida.') ],
     examples:[ {q:'\\int_0^2 x\\,dx', steps:['F=\\frac{x^2}{2}','F(2)-F(0)','=2-0=2']} ],
-    cards:[['\\int_a^b f dx','F(b)-F(a)'],['TFC','integrar desfaz derivar']],
+    cards:[['\\int_a^b f dx','F(b)-F(a)'],['TFC (parte 1)','\\int_a^b f = F(b)-F(a)'],['TFC (parte 2)','\\frac{d}{dx}\\int_a^x f = f(x)']],
     pool:[
       nu(1,'Calcule \\int_0^3 2x\\,dx.',9,0.001,'Antiderivada x²; 3²-0².','9.'),
       nu(1,'Calcule \\int_1^2 3x^2\\,dx.',7,0.001,'Antiderivada x³; 2³-1³.','7.'),
@@ -425,11 +500,464 @@ const CURR = [
       nuS(2,'Calcule \\int_0^1 x^3\\,dx. (decimal)',0.25,0.01,'F=x⁴/4.','0,25.','Stewart'),
       nuS(3,'Calcule \\int_1^3 x^2\\,dx. (decimal)',8.6667,0.01,'F=x³/3.','26/3 ≈ 8,67.','Guidorizzi'),
       nuS(3,'Calcule \\int_1^2 (x^2-x)\\,dx. (decimal)',0.8333,0.01,'F=x³/3 - x²/2.','5/6 ≈ 0,83.','Guidorizzi'),
+      mc(3,'Pelo TFC (parte 2), \\frac{d}{dx}\\int_0^x \\cos t\\,dt = ?',['\\sin x','\\cos x','-\\sin x','1'],1,'A derivada desfaz a integral.','cos x.'),
     ]},
 ];
 
-const MODULES = [...new Set(CURR.map(s=>s.mod))];
-const LEVEL_LABEL = { fund:'Fundamental (revisão)', med:'Ensino Médio (lacunas)', sup:'Cálculo (foco)' };
+/* ---- geradores de física (curso aeroespacial) ---- */
+function genQheat(){ const m=ri(2,6), c=pick([2,4,5,10]), dT=ri(3,12); return {d:2,type:'num',q:`Um corpo de ${m} kg e calor específico ${c} J/(kg·K) varia ${dT} K de temperatura. Qual o calor Q (J)?`,a:m*c*dT,tol:0.5,hint:'Q = m·c·ΔT.',sol:`${m}·${c}·${dT} = ${m*c*dT} J.`,gen:true}; }
+function genCont(){ const A1=ri(4,10), v1=ri(2,8), A2=ri(2,A1-1); const v2=A1*v1/A2; return {d:2,type:'num',q:`Num duto, a área passa de ${A1} para ${A2} cm² e a velocidade inicial é ${v1} m/s. Velocidade final (m/s, 2 casas)?`,a:Math.round(v2*100)/100,tol:0.05,hint:'A₁v₁ = A₂v₂ ⇒ v₂ = A₁v₁/A₂.',sol:`(${A1}·${v1})/${A2} ≈ ${v2.toFixed(2)} m/s.`,gen:true}; }
+function genWave(){ const lam=ri(1,6), f=ri(2,12); return {d:1,type:'num',q:`Uma onda tem comprimento ${lam} m e frequência ${f} Hz. Velocidade (m/s)?`,a:lam*f,tol:0.5,hint:'v = λ·f.',sol:`${lam}·${f} = ${lam*f} m/s.`,gen:true}; }
+function genBuoy(){ const V=pick([0.1,0.2,0.5,1,2]); const E=1000*V*10; return {d:2,type:'num',q:`Objeto de volume ${V} m³ totalmente submerso na água (ρ=1000 kg/m³, g=10). Empuxo (N)?`,a:E,tol:0.5,hint:'E = ρ·V·g.',sol:`1000·${V}·10 = ${E} N.`,gen:true}; }
+function genPress(){ const h=ri(2,20); const p=1000*10*h; return {d:2,type:'num',q:`Pressão manométrica da água a ${h} m de profundidade (ρ=1000, g=10)? (Pa)`,a:p,tol:0.5,hint:'p = ρ·g·h.',sol:`1000·10·${h} = ${p} Pa.`,gen:true}; }
+function genGasLaw(){ const p1=ri(2,6), V1=ri(2,8), p2=ri(2,6); const V2=p1*V1/p2; return {d:3,type:'num',q:`Um gás a ${p1} atm ocupa ${V1} L. A T constante, a pressão vira ${p2} atm. Novo volume (L, 2 casas)?`,a:Math.round(V2*100)/100,tol:0.05,hint:'p₁V₁ = p₂V₂ (T constante).',sol:`(${p1}·${V1})/${p2} ≈ ${V2.toFixed(2)} L.`,gen:true}; }
+function genCarnot(){ const Tc=ri(2,4)*100; const Th=Tc+ri(1,4)*100; const eff=1-Tc/Th; return {d:3,type:'num',q:`Máquina de Carnot entre ${Tc} K (fria) e ${Th} K (quente). Eficiência máxima (decimal, 2 casas)?`,a:Math.round(eff*100)/100,tol:0.02,hint:'η = 1 − Tc/Th (em Kelvin).',sol:`1 − ${Tc}/${Th} ≈ ${eff.toFixed(2)}.`,gen:true}; }
+function genSpring(){ const m=ri(1,4), k=pick([1,4,9,16,25]); const Tt=2*Math.PI*Math.sqrt(m/k); return {d:2,type:'num',q:`Massa-mola: m=${m} kg, k=${k} N/m. Período T (s, 2 casas)?`,a:Math.round(Tt*100)/100,tol:0.05,hint:'T = 2π√(m/k).',sol:`2π√(${m}/${k}) ≈ ${Tt.toFixed(2)} s.`,gen:true}; }
+function genPend(){ const L=pick([0.1,0.4,0.9,1.6,2.5]); const Tt=2*Math.PI*Math.sqrt(L/10); return {d:2,type:'num',q:`Pêndulo simples L=${L} m (g=10). Período T (s, 2 casas)?`,a:Math.round(Tt*100)/100,tol:0.05,hint:'T = 2π√(L/g).',sol:`2π√(${L}/10) ≈ ${Tt.toFixed(2)} s.`,gen:true}; }
+function genGravF(){ const m1=ri(2,9), m2=ri(2,9), r=ri(2,6); const v=m1*m2/(r*r); return {d:2,type:'num',q:`Duas massas de ${m1} kg e ${m2} kg a ${r} m de distância. Quanto vale F/G (= m₁m₂/r², 3 casas)?`,a:Math.round(v*1000)/1000,tol:0.01,hint:'F = G·m₁m₂/r²; aqui pede m₁m₂/r².',sol:`${m1}·${m2}/${r}² ≈ ${v.toFixed(3)}.`,gen:true}; }
+
+/* ============================ CURSO: CIÊNCIAS AEROESPACIAIS ============================
+   Física para tecnologia aeroespacial. Bibliografia: Young & Freedman (Física 2),
+   Halliday vol. 2, Moysés Nussenzveig vol. 2.
+========================================================================================= */
+const M1='Módulo 1 · Gravitação', M2='Módulo 2 · Fluidos', M3='Módulo 3 · Calor e Termodinâmica', M4='Módulo 4 · Oscilações e Ondas';
+const AERO = [
+  /* -------- M1: Gravitação -------- */
+  { id:'grav-lei', mod:M1, level:'sup', title:'Gravitação universal', icon:'🍎', method:'Lei do inverso do quadrado', gen:[genGravF],
+    theory:[ MET('Toda massa atrai toda massa; a intensidade cai com o quadrado da distância.'),
+      F('F=G\\frac{m_1 m_2}{r^2},\\quad G\\approx 6{,}67\\times10^{-11}'),
+      P('É a mesma força que segura a maçã na árvore e a Lua em órbita.'),
+      ERR('Erro comum: achar que dobrar a distância reduz a força pela metade. Cai para 1/4 (é r²).'),
+      WHY('Rege órbitas de satélites e a trajetória de foguetes e sondas.') ],
+    examples:[ {q:'r \\to 2r', steps:['F \\propto 1/r^2','vira 1/(2r)^2=1/4','força cai para 1/4']} ],
+    cards:[['F gravitacional','G\\frac{m_1 m_2}{r^2}'],['G','6{,}67\\times10^{-11}']],
+    pool:[
+      mc(1,'A força gravitacional é proporcional a:',['r','\\frac{1}{r}','\\frac{1}{r^2}','r^2'],2,'Inverso do quadrado.','∝ 1/r².'),
+      tf(2,'Dobrar a distância entre dois corpos reduz a força gravitacional à metade. Verdadeiro?',false,'É r², não r.','Falso: cai para 1/4.'),
+      mc(2,'Se a distância triplica, a força fica:',['3× menor','9× menor','3× maior','igual'],1,'3²=9.','9× menor.'),
+    ]},
+  { id:'grav-orbita', mod:M1, level:'sup', title:'Órbitas e velocidade orbital', icon:'🛰️', method:'Gravidade = força centrípeta',
+    theory:[ MET('Em órbita circular, a gravidade fornece exatamente a força centrípeta.'),
+      F('v=\\sqrt{\\frac{GM}{r}}'),
+      P('Por isso um satélite não "cai": ele cai o tempo todo, mas contorna a Terra.'),
+      ERR('Erro comum: satélite mais alto é mais rápido. É o contrário — v cai com 1/√r.'),
+      WHY('Define as altitudes de satélites (LEO, órbita geoestacionária).') ],
+    examples:[ {q:'v=\\sqrt{GM/r}', steps:['maior r','menor v','órbitas altas são mais lentas']} ],
+    cards:[['Velocidade orbital','\\sqrt{GM/r}'],['Satélite mais alto','mais lento']],
+    pool:[
+      tf(1,'Quanto mais alta a órbita, maior a velocidade do satélite. Verdadeiro?',false,'v ∝ 1/√r.','Falso: mais alto = mais lento.'),
+      mc(2,'A velocidade orbital depende de:',['massa do satélite','massa do corpo central e raio','só do raio','da cor'],1,'v=√(GM/r).','GM e r.'),
+      nu(2,'Se GM/r = 49 (unid. SI), qual a velocidade orbital v? (m/s)',7,0.1,'v=√(GM/r).','√49 = 7.'),
+      mcS(2,'Um satélite geoestacionário fica sempre sobre o mesmo ponto da Terra porque seu período orbital é de aproximadamente:',['1 hora','12 horas','24 horas','1 mês'],2,'Ele acompanha a rotação da Terra.','≈ 24 h (1 dia).','Lista 1 · CA'),
+      nuS(3,'Um cometa tem velocidade 2{,}0\\times10^4 m/s a 2{,}5\\times10^{11} m do Sol. Pela conservação do momento angular (L=mvr), qual a velocidade a 5{,}0\\times10^{10} m? (m/s)',100000,1000,'v_2 = v_1 r_1 / r_2.','2·10⁴·(2,5·10¹¹/5·10¹⁰) = 1·10⁵ m/s.','Lista 1 · CA'),
+    ]},
+  { id:'grav-escape', mod:M1, level:'sup', title:'Velocidade de escape', icon:'🚀', method:'Energia para escapar do poço gravitacional',
+    theory:[ MET('É a velocidade mínima para vencer a atração e nunca mais voltar (energia total = 0).'),
+      F('v_e=\\sqrt{\\frac{2GM}{R}}=\\sqrt2\\,v_{orbital}'),
+      P('Na Terra, ~11,2 km/s.'),
+      ERR('Erro comum: achar que depende da massa do foguete. Não depende — só de M e R do corpo.'),
+      WHY('Define o "delta-v" mínimo para missões interplanetárias.') ],
+    examples:[ {q:'v_e', steps:['v_e=\\sqrt2\\cdot v_{orb}','~1{,}41\\times a orbital']} ],
+    cards:[['Velocidade de escape','\\sqrt{2GM/R}'],['v_e / v_{orbital}','\\sqrt2']],
+    pool:[
+      mc(1,'A velocidade de escape em relação à orbital (mesmo raio) é:',['igual','\\sqrt2 vezes maior','2 vezes maior','metade'],1,'v_e=√2·v_orb.','√2 ≈ 1,41×.'),
+      tf(2,'A velocidade de escape depende da massa do foguete. Verdadeiro?',false,'Só de M e R do astro.','Falso.'),
+      nu(3,'Se a velocidade orbital é 5 km/s, a de escape é ~? (km/s, 2 casas)',7.07,0.1,'×√2.','5·1,414 ≈ 7,07.'),
+    ]},
+  { id:'grav-kepler', mod:M1, level:'sup', title:'Leis de Kepler', icon:'🪐', method:'Geometria das órbitas',
+    theory:[ MET('Órbitas são elipses; a 3ª lei liga período e raio.'),
+      F('T^2 \\propto r^3'),
+      P('1ª: órbitas elípticas; 2ª: áreas iguais em tempos iguais (mais rápido perto); 3ª: T²∝r³.'),
+      ERR('Erro comum: usar T∝r. A relação é T²∝r³.'),
+      WHY('Permite prever o período de satélites e planetas a partir do raio da órbita.') ],
+    examples:[ {q:'T^2\\propto r^3', steps:['r \\times 4','r^3 \\times 64','T \\times 8']} ],
+    cards:[['3ª lei de Kepler','T^2\\propto r^3'],['2ª lei','áreas iguais em tempos iguais']],
+    pool:[
+      mc(1,'A 3ª lei de Kepler diz que:',['T\\propto r','T^2\\propto r^3','T\\propto r^2','T^3\\propto r^2'],1,'Período² ∝ raio³.','T²∝r³.'),
+      tf(2,'Pela 2ª lei, o planeta vai mais rápido quando está mais perto do Sol. Verdadeiro?',true,'Áreas iguais em tempos iguais.','Verdadeiro.'),
+      mcS(3,'Num sistema binário, duas estrelas orbitam o centro de massa comum. A razão entre os raios orbitais R_1/R_2 é:',['M_1/M_2','M_2/M_1','1','M_1 M_2'],1,'m₁R₁ = m₂R₂ (centro de massa).','R₁/R₂ = M₂/M₁ (inverso das massas).','Lista 1 · CA'),
+    ]},
+
+  /* -------- M2: Fluidos -------- */
+  { id:'flu-pressao', mod:M2, level:'sup', title:'Pressão e lei de Stevin', icon:'🌊', method:'Pressão cresce com a profundidade', gen:[genPress],
+    theory:[ MET('Num fluido em repouso, a pressão aumenta linearmente com a profundidade.'),
+      F('p=p_0+\\rho g h'),
+      ERR('Erro comum: achar que a pressão depende do formato ou do volume do recipiente. Depende só da profundidade.'),
+      WHY('Base da atmosfera: a pressão do ar cai com a altitude — essencial para voo e balões.') ],
+    examples:[ {q:'p=\\rho g h', steps:['dobra h','dobra a pressão (manométrica)']} ],
+    cards:[['Lei de Stevin','p=p_0+\\rho g h']],
+    pool:[
+      tf(1,'A pressão num líquido depende do formato do recipiente. Verdadeiro?',false,'Só da profundidade.','Falso.'),
+      nu(2,'Pressão manométrica a 5 m na água (ρ=1000, g=10)? (Pa)',50000,1,'p=ρgh.','1000·10·5.'),
+      mc(2,'A pressão num fluido em repouso aumenta com:',['a largura','a profundidade','a cor','o volume'],1,'p=ρgh.','profundidade.'),
+      nuS(3,'Num manômetro, um fluido de densidade relativa 1,6 (ρ=1600 kg/m³) forma uma coluna de 420 mm. Qual a pressão manométrica ρgh? (g=9,8; Pa)',6585.6,5,'ρ=1,6·1000; depois p=ρgh.','1600·9,8·0,420 ≈ 6585,6 Pa.','Lista 2 · CA'),
+    ]},
+  { id:'flu-arquimedes', mod:M2, level:'sup', title:'Empuxo (Arquimedes)', icon:'🎈', method:'Peso do fluido deslocado', gen:[genBuoy],
+    theory:[ MET('Todo corpo imerso recebe um empuxo igual ao peso do fluido que ele desloca.'),
+      F('E=\\rho_{fluido}\\,V\\,g'),
+      P('Flutua se a densidade média do corpo for menor que a do fluido.'),
+      ERR('Erro comum: usar a densidade do objeto no empuxo. É a densidade do FLUIDO.'),
+      WHY('Explica por que balões e dirigíveis (mais leves que o ar) sobem.') ],
+    examples:[ {q:'balão', steps:['E do ar > peso','densidade menor que o ar','sobe']} ],
+    cards:[['Empuxo','\\rho_{fluido}Vg'],['Flutua quando','\\rho_{corpo}<\\rho_{fluido}']],
+    pool:[
+      tf(1,'Um balão sobe quando sua densidade média é menor que a do ar. Verdadeiro?',true,'Empuxo vence o peso.','Verdadeiro.'),
+      nu(2,'Empuxo sobre 0,2 m³ submersos na água (ρ=1000, g=10)? (N)',2000,1,'E=ρVg.','1000·0,2·10.'),
+      mc(2,'No empuxo E=ρVg, ρ é a densidade:',['do objeto','do fluido','do ar sempre','do vácuo'],1,'Fluido deslocado.','do fluido.'),
+      er(3,'Ache o erro no cálculo do empuxo de um bloco (V=2 m³) na água:',['E = ρ_fluido · V · g','E = 1000 · 2 · 10','E = 20 N'],2,'Confira a conta.','1000·2·10 = 20000 N, não 20. Erro no passo 3.'),
+    ]},
+  { id:'flu-continuidade', mod:M2, level:'sup', title:'Equação da continuidade', icon:'🚿', method:'Conservação de vazão', gen:[genCont],
+    theory:[ MET('O que entra tem que sair: a vazão (A·v) se conserva num fluido incompressível.'),
+      F('A_1 v_1 = A_2 v_2'),
+      ERR('Erro comum: achar que onde estreita o fluido fica mais lento. É o contrário — acelera.'),
+      WHY('Explica por que o ar acelera onde a seção estreita — base para entender a asa.') ],
+    examples:[ {q:'A_1 v_1=A_2 v_2', steps:['área cai pela metade','velocidade dobra']} ],
+    cards:[['Continuidade','A_1 v_1=A_2 v_2'],['Área menor','velocidade maior']],
+    pool:[
+      tf(1,'Onde o duto estreita, o fluido fica mais lento. Verdadeiro?',false,'A·v constante.','Falso: acelera.'),
+      nu(2,'Se A₁=6, v₁=4 e A₂=3 (unid. compatíveis), qual v₂?',8,0.1,'v₂=A₁v₁/A₂.','6·4/3=8.'),
+      od(2,'Ordene para achar v₂ dado A₁=8, v₁=3, A₂=2:',['A₁v₁ = 8·3 = 24','v₂ = 24 / A₂','v₂ = 24 / 2 = 12'],'Comece pela vazão A₁v₁.'),
+    ]},
+  { id:'flu-bernoulli', mod:M2, level:'sup', title:'Bernoulli e sustentação', icon:'✈️', method:'Energia do fluido em movimento',
+    theory:[ MET('Ao longo de uma linha de corrente, pressão + energia cinética + potencial se conservam.'),
+      F('p+\\tfrac12\\rho v^2+\\rho g h=\\text{const}'),
+      P('Onde o fluido vai mais rápido, a pressão é menor.'),
+      ERR('Erro comum: tratar Bernoulli como a explicação completa da sustentação — ele dá a intuição pressão↔velocidade, mas a asa também empurra ar para baixo (3ª lei).'),
+      WHY('Base da aerodinâmica: ar mais rápido no extradorso → menor pressão → sustentação.') ],
+    examples:[ {q:'asa', steps:['ar mais rápido em cima','pressão menor em cima','força resultante para cima']} ],
+    cards:[['Bernoulli','p+\\tfrac12\\rho v^2+\\rho gh=const'],['v maior','p menor']],
+    pool:[
+      mc(1,'Onde a velocidade do fluido é maior, a pressão é:',['maior','menor','igual','zero'],1,'Bernoulli.','menor.'),
+      tf(2,'Pela relação de Bernoulli, acelerar o ar sobre a asa reduz a pressão ali. Verdadeiro?',true,'v↑ ⇒ p↓.','Verdadeiro.'),
+    ]},
+
+  /* -------- M3: Calor e Termodinâmica -------- */
+  { id:'termo-calor', mod:M3, level:'sup', title:'Calor e transferência', icon:'🔥', method:'Q = m·c·ΔT + 3 modos', gen:[genQheat],
+    theory:[ MET('Calor é energia em trânsito por diferença de temperatura.'),
+      F('Q=m\\,c\\,\\Delta T'),
+      P('Três modos: condução (contato), convecção (fluido em movimento), radiação (ondas eletromagnéticas).'),
+      ERR('Erro comum: confundir calor com temperatura. Temperatura é o nível; calor é a energia que flui.'),
+      WHY('Reentrada atmosférica e refrigeração de motores dependem de dominar transferência de calor.') ],
+    examples:[ {q:'Q=mc\\Delta T', steps:['2 kg, c=4, ΔT=10','Q=2·4·10=80 J']} ],
+    cards:[['Calor sensível','Q=mc\\Delta T'],['3 modos','condução, convecção, radiação']],
+    pool:[
+      mc(1,'A radiação transfere calor por:',['contato direto','ondas eletromagnéticas','correntes de fluido','atrito'],1,'Não precisa de meio.','ondas eletromagnéticas.'),
+      nu(2,'Q para aquecer 3 kg (c=4 J/kg·K) em 10 K?',120,0.5,'Q=mcΔT.','3·4·10=120 J.'),
+      tf(2,'Calor e temperatura são a mesma coisa. Verdadeiro?',false,'Um é energia, o outro é nível.','Falso.'),
+      nuS(3,'Um bloco de cobre de 0,02 kg (c=386 J/kg·K) sofre variação de 50,4 K. Qual o calor trocado? (J)',389.088,1,'Q = m·c·ΔT.','0,02·386·50,4 ≈ 389 J.','Lista 3 · CA'),
+    ]},
+  { id:'termo-leis', mod:M3, level:'sup', title:'Leis da termodinâmica', icon:'⚙️', method:'Conservação + seta do tempo',
+    theory:[ MET('1ª lei: conservação de energia. 2ª lei: entropia nunca diminui (há um limite).'),
+      F('\\Delta U = Q - W'),
+      P('ΔU é a variação de energia interna; W é o trabalho feito PELO gás.'),
+      ERR('Erro comum: esperar uma máquina 100% eficiente. A 2ª lei proíbe.'),
+      WHY('Todo motor, turbina e ciclo de potência obedece a essas leis.') ],
+    examples:[ {q:'\\Delta U=Q-W', steps:['Q=100, W=40','ΔU=60 J']} ],
+    cards:[['1ª lei','\\Delta U=Q-W'],['2ª lei','entropia não diminui']],
+    pool:[
+      nu(1,'Se Q=100 J entra e o gás realiza W=40 J, qual ΔU? (J)',60,0.5,'ΔU=Q-W.','100-40=60.'),
+      tf(2,'É possível uma máquina térmica com 100% de eficiência. Verdadeiro?',false,'2ª lei proíbe.','Falso.'),
+      mc(2,'A 1ª lei da termodinâmica é uma forma de:',['conservação de energia','aumento de entropia','lei de Newton','lei de Ohm'],0,'ΔU=Q-W.','conservação de energia.'),
+    ]},
+  { id:'termo-gas', mod:M3, level:'sup', title:'Gás ideal e cinética dos gases', icon:'💨', method:'Ponte micro↔macro', gen:[genGasLaw],
+    theory:[ MET('A visão molecular explica pressão e temperatura como efeitos do movimento das moléculas.'),
+      F('pV=nRT,\\qquad \\bar{E}_{cin}=\\tfrac32 k T'),
+      P('Temperatura é proporcional à energia cinética média das moléculas.'),
+      ERR('Erro comum: usar temperatura em °C. Nas leis dos gases, sempre KELVIN.'),
+      WHY('Modela o ar, a combustão e os gases de exaustão de motores e turbinas.') ],
+    examples:[ {q:'p_1V_1=p_2V_2', steps:['T constante','p dobra','V cai pela metade']} ],
+    cards:[['Gás ideal','pV=nRT'],['Energia cinética média','\\tfrac32 kT'],['Temperatura em','Kelvin']],
+    pool:[
+      tf(1,'A temperatura mede a energia cinética média das moléculas. Verdadeiro?',true,'E∝T.','Verdadeiro.'),
+      nu(2,'A T constante, um gás a 4 atm e 6 L é comprimido a 8 atm. Novo volume? (L)',3,0.1,'p₁V₁=p₂V₂.','4·6/8=3.'),
+      mc(2,'Nas leis dos gases, a temperatura deve estar em:',['°C','Kelvin','°F','graus'],1,'Sempre absoluta.','Kelvin.'),
+    ]},
+  { id:'termo-ciclos', mod:M3, level:'sup', title:'Ciclos térmicos e Carnot', icon:'🔄', method:'Eficiência máxima', gen:[genCarnot],
+    theory:[ MET('Máquinas térmicas convertem calor em trabalho num ciclo; Carnot dá o teto de eficiência.'),
+      F('\\eta=1-\\frac{T_c}{T_h}\\quad(\\text{Kelvin})'),
+      P('Motores de combustão, turbinas a gás e ciclos a vapor são variações desse princípio.'),
+      ERR('Erro comum: esquecer o Kelvin, ou achar que dá para superar a eficiência de Carnot.'),
+      WHY('Define o limite de desempenho de turbinas e motores aeronáuticos.') ],
+    examples:[ {q:'\\eta=1-T_c/T_h', steps:['Tc=300, Th=600','η=1-0,5=0,5']} ],
+    cards:[['Eficiência de Carnot','1-\\frac{T_c}{T_h}'],['Unidade de T','Kelvin']],
+    pool:[
+      nu(2,'Carnot entre 300 K e 600 K. Eficiência máxima? (decimal)',0.5,0.02,'η=1-Tc/Th.','1-300/600=0,5.'),
+      tf(2,'Uma máquina real pode superar a eficiência de Carnot. Verdadeiro?',false,'É o teto teórico.','Falso.'),
+      mc(1,'A eficiência de Carnot depende de:',['só da fonte quente','das temperaturas quente e fria','do combustível','da cor'],1,'η=1-Tc/Th.','das duas temperaturas.'),
+    ]},
+
+  /* -------- M4: Oscilações e Ondas -------- */
+  { id:'osc-mhs', mod:M4, level:'sup', title:'MHS: massa-mola', icon:'🌀', method:'Força restauradora ∝ deslocamento', gen:[genSpring],
+    theory:[ MET('Uma força que sempre puxa de volta ao equilíbrio, proporcional ao deslocamento, gera oscilação harmônica.'),
+      F('F=-k x,\\qquad T=2\\pi\\sqrt{\\frac{m}{k}}'),
+      ERR('Erro comum: achar que o período depende da amplitude. No MHS ideal, não depende.'),
+      WHY('Modela vibrações de estruturas de aeronaves (aproximação massa-mola).') ],
+    examples:[ {q:'T=2\\pi\\sqrt{m/k}', steps:['m=1, k=4','T=2π·0,5=π s']} ],
+    cards:[['Lei de Hooke','F=-kx'],['Período massa-mola','2\\pi\\sqrt{m/k}']],
+    pool:[
+      tf(1,'O período de um sistema massa-mola depende da amplitude. Verdadeiro?',false,'Só de m e k.','Falso.'),
+      nu(2,'m=1 kg, k=16 N/m. Período T? (s, 2 casas)',1.57,0.05,'T=2π√(m/k).','2π√(1/16)=π/2≈1,57.'),
+      mc(2,'No MHS, a força restauradora é proporcional a:',['velocidade','deslocamento','massa','tempo'],1,'F=-kx.','deslocamento.'),
+    ]},
+  { id:'osc-pendulo', mod:M4, level:'sup', title:'Pêndulo simples', icon:'🕰️', method:'Oscilação pela gravidade', gen:[genPend],
+    theory:[ MET('Para ângulos pequenos, o pêndulo também faz MHS.'),
+      F('T=2\\pi\\sqrt{\\frac{L}{g}}'),
+      ERR('Erro comum: achar que pêndulo mais pesado oscila mais devagar. O período independe da massa.'),
+      WHY('Exemplo clássico de oscilador — base para entender sistemas vibrantes.') ],
+    examples:[ {q:'T=2\\pi\\sqrt{L/g}', steps:['L=2,5, g=10','T=2π·0,5=π s']} ],
+    cards:[['Período do pêndulo','2\\pi\\sqrt{L/g}'],['Depende da massa?','não']],
+    pool:[
+      tf(1,'O período do pêndulo simples depende da massa. Verdadeiro?',false,'Só de L e g.','Falso.'),
+      nu(2,'L=0,9 m, g=10. Período T? (s, 2 casas)',1.88,0.05,'T=2π√(L/g).','2π√0,09≈1,88.'),
+    ]},
+  { id:'ond-ondas', mod:M4, level:'sup', title:'Ondas e som', icon:'🔊', method:'v = λ·f', gen:[genWave],
+    theory:[ MET('Uma onda transporta energia sem transportar matéria; frequência e comprimento se ligam pela velocidade.'),
+      F('v=\\lambda f'),
+      P('No mesmo meio, a velocidade é fixa: aumentar a frequência diminui o comprimento de onda.'),
+      ERR('Erro comum: achar que aumentar a frequência aumenta a velocidade. No mesmo meio, v é constante.'),
+      WHY('Ondas sonoras, ruído e interação fluido-estrutura (flutter) são centrais na engenharia aeroespacial.') ],
+    examples:[ {q:'v=\\lambda f', steps:['λ=2 m, f=5 Hz','v=10 m/s']} ],
+    cards:[['Relação da onda','v=\\lambda f'],['Mesmo meio','v constante']],
+    pool:[
+      nu(1,'λ=2 m e f=5 Hz. Velocidade? (m/s)',10,0.5,'v=λf.','2·5=10.'),
+      tf(2,'Aumentar a frequência (mesmo meio) aumenta a velocidade da onda. Verdadeiro?',false,'v é fixa no meio.','Falso: muda λ.'),
+      mc(2,'No mesmo meio, se a frequência dobra, o comprimento de onda:',['dobra','cai pela metade','não muda','quadruplica'],1,'v=λf constante.','cai pela metade.'),
+    ]},
+];
+
+/* ---- geradores de mecânica (curso de Física) ---- */
+function genFma(){ const m=ri(2,10), a=ri(1,9); return {d:2,type:'num',q:`Um corpo de ${m} kg sofre aceleração de ${a} m/s². Qual a força resultante (N)?`,a:m*a,tol:0.5,hint:'F = m·a (2ª lei de Newton).',sol:`${m}·${a} = ${m*a} N.`,gen:true}; }
+function genVfinal(){ const v0=ri(0,10), a=ri(1,6), t=ri(1,8); return {d:2,type:'num',q:`Um móvel parte de v₀=${v0} m/s com aceleração ${a} m/s². Velocidade após ${t} s? (m/s)`,a:v0+a*t,tol:0.5,hint:'v = v₀ + a·t.',sol:`${v0}+${a}·${t} = ${v0+a*t} m/s.`,gen:true}; }
+function genKE(){ const m=pick([2,4,6,8,10]), v=ri(2,8); return {d:2,type:'num',q:`Energia cinética de ${m} kg a ${v} m/s? (J)`,a:0.5*m*v*v,tol:0.5,hint:'E_c = ½mv².',sol:`0,5·${m}·${v}² = ${0.5*m*v*v} J.`,gen:true}; }
+function genWork(){ const F=ri(2,12), d=ri(2,10); return {d:1,type:'num',q:`Trabalho de uma força de ${F} N que desloca um corpo ${d} m na mesma direção? (J)`,a:F*d,tol:0.5,hint:'W = F·d (mesma direção).',sol:`${F}·${d} = ${F*d} J.`,gen:true}; }
+function genMomentum(){ const m=ri(2,10), v=ri(2,9); return {d:1,type:'num',q:`Momento linear de ${m} kg a ${v} m/s? (kg·m/s)`,a:m*v,tol:0.5,hint:'p = m·v.',sol:`${m}·${v} = ${m*v}.`,gen:true}; }
+function genImpulse(){ const F=ri(2,10), t=ri(1,6); return {d:2,type:'num',q:`Impulso de uma força de ${F} N aplicada por ${t} s? (N·s)`,a:F*t,tol:0.5,hint:'J = F·Δt = Δp.',sol:`${F}·${t} = ${F*t}.`,gen:true}; }
+function genCentrip(){ const v=ri(2,10), r=pick([1,2,4,5]); return {d:2,type:'num',q:`Aceleração centrípeta a ${v} m/s num raio de ${r} m? (m/s², 2 casas)`,a:Math.round(v*v/r*100)/100,tol:0.05,hint:'a_c = v²/r.',sol:`${v}²/${r} ≈ ${(v*v/r).toFixed(2)}.`,gen:true}; }
+function genFriction(){ const mu=pick([0.2,0.3,0.4,0.5]), m=ri(2,10); return {d:2,type:'num',q:`Atrito sobre ${m} kg num piso horizontal com μ=${mu} (g=10)? (N)`,a:Math.round(mu*m*10*100)/100,tol:0.05,hint:'f = μ·N, com N=mg.',sol:`${mu}·${m}·10 = ${mu*m*10} N.`,gen:true}; }
+function genPE(){ const m=ri(2,10), h=ri(2,10); return {d:1,type:'num',q:`Energia potencial gravitacional de ${m} kg a ${h} m de altura (g=10)? (J)`,a:m*10*h,tol:0.5,hint:'U = m·g·h.',sol:`${m}·10·${h} = ${m*10*h} J.`,gen:true}; }
+function genTorque(){ const r=ri(1,5), F=ri(2,10); return {d:2,type:'num',q:`Torque de uma força de ${F} N aplicada perpendicularmente a ${r} m do eixo? (N·m)`,a:r*F,tol:0.5,hint:'τ = r·F (força perpendicular).',sol:`${r}·${F} = ${r*F} N·m.`,gen:true}; }
+function genRotV(){ const w=ri(2,8), r=pick([0.5,1,2,3]); return {d:2,type:'num',q:`Um ponto a ${r} m do eixo gira com ω=${w} rad/s. Velocidade linear? (m/s, 2 casas)`,a:Math.round(w*r*100)/100,tol:0.05,hint:'v = ω·r.',sol:`${w}·${r} = ${(w*r).toFixed(2)} m/s.`,gen:true}; }
+
+/* ============================ CURSO: FÍSICA BÁSICA (MECÂNICA) ============================
+   Bibliografia: Young & Freedman (Física 1), Serway, Moysés Nussenzveig (Vol 1), Halliday, Tipler.
+======================================================================================== */
+const FM1='Módulo 1 · Unidades e Vetores', FM2='Módulo 2 · Cinemática', FM3='Módulo 3 · Leis de Newton', FM4='Módulo 4 · Trabalho e Energia', FM5='Módulo 5 · Momento e Colisões', FM6='Módulo 6 · Rotação';
+const FISICA = [
+  /* -------- M1: Unidades e Vetores -------- */
+  { id:'fis-unidades', mod:FM1, level:'sup', title:'Grandezas e unidades (SI)', icon:'📏', method:'Medir e comparar',
+    theory:[ MET('Toda física começa por medir: uma grandeza é um número acompanhado de uma unidade.'),
+      P('No SI, as grandezas fundamentais da mecânica são comprimento (m), massa (kg) e tempo (s).'),
+      F('[\\text{força}]=\\text{kg}\\cdot\\text{m/s}^2=\\text{N}'),
+      ERR('Erro comum: somar grandezas de unidades diferentes. A análise dimensional tem que fechar dos dois lados.'),
+      WHY('Sem unidades e padrões, nenhum resultado físico é comparável ou verificável.') ],
+    examples:[ {q:'2\\ \\text{km}=?\\ \\text{m}', steps:['1 km = 1000 m','2·1000 = 2000 m']} ],
+    cards:[['Unidade de força (SI)','\\text{N}=\\text{kg·m/s}^2'],['Grandezas fundamentais','comprimento, massa, tempo']],
+    pool:[
+      mc(1,'A unidade de força no SI é o newton, equivalente a:',['kg·m/s','kg·m/s^2','kg/m','kg·m^2'],1,'F=ma.','kg·m/s².'),
+      nu(1,'Quantos metros há em 2,5 km?',2500,1,'1 km = 1000 m.','2500 m.'),
+      mc(1,'Qual destas é uma grandeza fundamental do SI mecânico?',['força','massa','velocidade','energia'],1,'As derivadas vêm dela.','massa.'),
+      tf(2,'É válido somar 3 m com 5 s. Verdadeiro?',false,'Unidades diferentes.','Falso.'),
+    ]},
+  { id:'fis-vetores', mod:FM1, level:'sup', title:'Vetores', icon:'➡️', method:'Módulo, direção e sentido',
+    theory:[ MET('Grandezas vetoriais precisam de módulo, direção e sentido — não bastam números.'),
+      F('|\\vec v|=\\sqrt{v_x^2+v_y^2}'),
+      P('Somam-se por componentes: some os x com os x e os y com os y.'),
+      ERR('Erro comum: somar módulos de vetores como se fossem escalares. 3 + 4 só dá 7 se forem na mesma direção; perpendiculares dão 5.'),
+      WHY('Força, velocidade e aceleração são vetores — toda a mecânica é vetorial.') ],
+    examples:[ {q:'\\vec v=(3,4)', steps:['|\\vec v|=\\sqrt{3^2+4^2}','=\\sqrt{25}=5']} ],
+    cards:[['Módulo de (v_x,v_y)','\\sqrt{v_x^2+v_y^2}'],['Soma de vetores','componente a componente']],
+    pool:[
+      nu(1,'Qual o módulo do vetor (3, 4)?',5,0.01,'√(3²+4²).','√25 = 5.'),
+      nu(2,'Módulo do vetor (6, 8)?',10,0.01,'√(36+64).','√100 = 10.'),
+      tf(2,'Dois vetores perpendiculares de módulos 3 e 4 somam um vetor de módulo 7. Verdadeiro?',false,'Use Pitágoras.','Falso: módulo 5.'),
+      mc(1,'Uma grandeza vetorial precisa de:',['só módulo','módulo, direção e sentido','só direção','só sentido'],1,'Três atributos.','módulo, direção e sentido.'),
+    ]},
+
+  /* -------- M2: Cinemática -------- */
+  { id:'fis-mru', mod:FM2, level:'sup', title:'Movimento retilíneo', icon:'🚗', method:'Velocidade média',
+    theory:[ MET('Velocidade média é o quanto o espaço variou dividido pelo tempo gasto.'),
+      F('v_m=\\frac{\\Delta s}{\\Delta t}'),
+      ERR('Erro comum: confundir velocidade média com média das velocidades. Nem sempre são iguais.'),
+      WHY('É a base da cinemática e conecta com a derivada (velocidade instantânea).') ],
+    examples:[ {q:'v_m', steps:['Δs=100 m, Δt=20 s','v_m=100/20=5 m/s']} ],
+    cards:[['Velocidade média','\\frac{\\Delta s}{\\Delta t}']],
+    pool:[
+      nu(1,'Um carro percorre 100 m em 20 s. Velocidade média? (m/s)',5,0.1,'Δs/Δt.','100/20=5.'),
+      nu(2,'Percorre 240 m em 30 s. Velocidade média? (m/s)',8,0.1,'Δs/Δt.','240/30=8.'),
+      tf(1,'No MRU a velocidade é constante. Verdadeiro?',true,'Movimento uniforme.','Verdadeiro.'),
+    ]},
+  { id:'fis-mruv', mod:FM2, level:'sup', title:'MRUV (aceleração constante)', icon:'📈', method:'Equações do movimento', gen:[genVfinal],
+    theory:[ MET('Com aceleração constante, a velocidade cresce em rampa e a posição em parábola.'),
+      F('v=v_0+at,\\quad s=s_0+v_0 t+\\tfrac12 a t^2'),
+      F('v^2=v_0^2+2a\\,\\Delta s\\ \\text{(Torricelli)}'),
+      ERR('Erro comum: usar as fórmulas do MRUV quando a aceleração NÃO é constante.'),
+      WHY('Queda livre e freagem são MRUV — e as fórmulas saem de integrar a aceleração.') ],
+    examples:[ {q:'v=v_0+at', steps:['v0=0, a=2, t=5','v=0+2·5=10 m/s']} ],
+    cards:[['Velocidade (MRUV)','v=v_0+at'],['Torricelli','v^2=v_0^2+2a\\Delta s']],
+    pool:[
+      nu(1,'Parte do repouso com a=3 m/s². Velocidade após 4 s? (m/s)',12,0.5,'v=at.','3·4=12.'),
+      nu(2,'v₀=0, a=2 m/s². Por Torricelli, velocidade após 25 m? (m/s)',10,0.5,'v²=2aΔs.','√(2·2·25)=10.'),
+      od(2,'Ordene para achar v após 3 s (v₀=4, a=2):',['v = v₀ + a·t','v = 4 + 2·3','v = 10 m/s'],'Comece pela fórmula.'),
+      tf(2,'As fórmulas do MRUV valem para qualquer movimento. Verdadeiro?',false,'Só aceleração constante.','Falso.'),
+    ]},
+  { id:'fis-2d', mod:FM2, level:'sup', title:'Movimento em 2D e projéteis', icon:'🎯', method:'Movimentos independentes',
+    theory:[ MET('Um lançamento se separa em dois movimentos independentes: horizontal (MRU) e vertical (queda).'),
+      F('x=v_0 t,\\qquad y=\\tfrac12 g t^2'),
+      P('O tempo de queda depende só da altura, não da velocidade horizontal.'),
+      ERR('Erro comum: achar que ir mais rápido na horizontal faz cair mais devagar. O tempo de queda é o mesmo.'),
+      WHY('Trajetórias de projéteis, saltos e lançamentos são todos 2D.') ],
+    examples:[ {q:'queda', steps:['h=½gt²','t=\\sqrt{2h/g}']} ],
+    cards:[['Horizontal','MRU: x=v_0 t'],['Vertical','queda: y=\\tfrac12 g t^2']],
+    pool:[
+      mc(1,'No lançamento horizontal, o movimento na direção x é:',['acelerado','uniforme (MRU)','circular','parado'],1,'Sem força horizontal.','MRU.'),
+      nu(2,'De que altura um corpo cai em 2 s? (g=10, m)',20,0.5,'h=½gt².','0,5·10·4=20 m.'),
+      tf(2,'Dois corpos soltos da mesma altura, um na horizontal e outro em repouso, chegam juntos ao chão. Verdadeiro?',true,'Queda independe do horizontal.','Verdadeiro.'),
+    ]},
+  { id:'fis-circular', mod:FM2, level:'sup', title:'Movimento circular uniforme', icon:'🔄', method:'Aceleração que muda a direção', gen:[genCentrip],
+    theory:[ MET('No MCU o módulo da velocidade é constante, mas a direção muda — logo há aceleração (centrípeta).'),
+      F('a_c=\\frac{v^2}{r},\\qquad v=\\frac{2\\pi r}{T}'),
+      ERR('Erro comum: dizer que no MCU não há aceleração porque a rapidez é constante. Há: a centrípeta, apontando ao centro.'),
+      WHY('Órbitas, curvas e rotores dependem da aceleração centrípeta.') ],
+    examples:[ {q:'a_c', steps:['v=4, r=2','a_c=16/2=8 m/s²']} ],
+    cards:[['Aceleração centrípeta','\\frac{v^2}{r}'],['Aponta para','o centro']],
+    pool:[
+      nu(2,'Aceleração centrípeta a 4 m/s num raio de 2 m? (m/s²)',8,0.1,'v²/r.','16/2=8.'),
+      tf(2,'No MCU não existe aceleração. Verdadeiro?',false,'A direção muda.','Falso: há a centrípeta.'),
+      mc(1,'A aceleração centrípeta aponta:',['na direção do movimento','para o centro','para fora','para cima'],1,'Centrípeta = "busca o centro".','para o centro.'),
+    ]},
+
+  /* -------- M3: Leis de Newton -------- */
+  { id:'fis-newton', mod:FM3, level:'sup', title:'Leis de Newton', icon:'🍏', method:'Força muda o movimento', gen:[genFma],
+    theory:[ MET('1ª: sem força resultante, o movimento não muda. 2ª: força resultante = massa × aceleração. 3ª: ação e reação.'),
+      F('\\vec F_{res}=m\\,\\vec a'),
+      ERR('Erro comum: achar que ação e reação se cancelam. Elas agem em CORPOS DIFERENTES, então não se anulam.'),
+      WHY('É o coração da dinâmica: prevê o movimento a partir das forças.') ],
+    examples:[ {q:'F=ma', steps:['m=2, a=3','F=6 N']} ],
+    cards:[['2ª lei de Newton','\\vec F=m\\vec a'],['1ª lei','inércia'],['3ª lei','ação e reação']],
+    pool:[
+      nu(1,'Força resultante sobre 2 kg com a=5 m/s²? (N)',10,0.5,'F=ma.','2·5=10.'),
+      mc(1,'A 1ª lei de Newton trata de:',['ação e reação','inércia','atrito','energia'],1,'Sem força → sem mudança.','inércia.'),
+      tf(2,'As forças de ação e reação se cancelam por agirem no mesmo corpo. Verdadeiro?',false,'Agem em corpos diferentes.','Falso.'),
+      er(2,'Ache o erro: força sobre 4 kg com a=2 m/s²:',['F = m·a','F = 4·2','F = 6 N'],2,'Confira a conta.','4·2 = 8 N, não 6. Erro no passo 3.'),
+    ]},
+  { id:'fis-atrito', mod:FM3, level:'sup', title:'Força de atrito', icon:'🛑', method:'Resistência ao deslizamento', gen:[genFriction],
+    theory:[ MET('O atrito se opõe ao movimento e é proporcional à força normal.'),
+      F('f=\\mu N,\\qquad N=mg\\ \\text{(piso horizontal)}'),
+      ERR('Erro comum: achar que o atrito depende da área de contato. No modelo básico, depende de μ e de N.'),
+      WHY('Freios, pneus e caminhar só funcionam por causa do atrito.') ],
+    examples:[ {q:'f=\\mu N', steps:['μ=0,3, m=10, g=10','N=100, f=0,3·100=30 N']} ],
+    cards:[['Força de atrito','f=\\mu N'],['Normal (piso horizontal)','N=mg']],
+    pool:[
+      nu(2,'Atrito sobre 10 kg com μ=0,4 (g=10)? (N)',40,0.5,'f=μmg.','0,4·10·10=40.'),
+      tf(2,'A força de atrito (modelo básico) depende da área de contato. Verdadeiro?',false,'Depende de μ e N.','Falso.'),
+      mc(1,'A força de atrito é proporcional à:',['área','força normal','velocidade','massa apenas'],1,'f=μN.','força normal.'),
+    ]},
+
+  /* -------- M4: Trabalho e Energia -------- */
+  { id:'fis-trabalho', mod:FM4, level:'sup', title:'Trabalho e energia cinética', icon:'💪', method:'Força ao longo do deslocamento', gen:[genWork,genKE],
+    theory:[ MET('Trabalho é força atuando ao longo de um deslocamento; ele muda a energia cinética.'),
+      F('W=F\\,d\\cos\\theta,\\qquad E_c=\\tfrac12 m v^2'),
+      F('W_{res}=\\Delta E_c\\ \\text{(teorema trabalho-energia)}'),
+      ERR('Erro comum: dizer que uma força perpendicular ao movimento realiza trabalho. cos 90° = 0 ⇒ trabalho nulo.'),
+      WHY('O conceito de trabalho vem de integrar a força — liga direto com o cálculo.') ],
+    examples:[ {q:'E_c', steps:['m=2, v=3','E_c=½·2·9=9 J']} ],
+    cards:[['Trabalho','F\\,d\\cos\\theta'],['Energia cinética','\\tfrac12 mv^2'],['Teorema','W=\\Delta E_c']],
+    pool:[
+      nu(1,'Trabalho de 10 N ao longo de 5 m (mesma direção)? (J)',50,0.5,'W=Fd.','10·5=50.'),
+      nu(2,'Energia cinética de 4 kg a 3 m/s? (J)',18,0.5,'½mv².','0,5·4·9=18.'),
+      tf(2,'Uma força perpendicular ao deslocamento realiza trabalho nulo. Verdadeiro?',true,'cos 90°=0.','Verdadeiro.'),
+      mc(2,'O teorema trabalho-energia diz que o trabalho resultante é igual à:',['variação de momento','variação de energia cinética','força','potência'],1,'W=ΔE_c.','variação de energia cinética.'),
+    ]},
+  { id:'fis-energia', mod:FM4, level:'sup', title:'Energia potencial e conservação', icon:'⛰️', method:'Energia que se transforma', gen:[genPE],
+    theory:[ MET('Energia não some: com forças conservativas, cinética e potencial trocam mas a mecânica total se conserva.'),
+      F('U=mgh,\\qquad E_{mec}=E_c+U=\\text{const}'),
+      P('Numa queda, U vira E_c: v=\\sqrt{2gh}.'),
+      ERR('Erro comum: aplicar conservação quando há atrito (força não conservativa dissipa energia).'),
+      WHY('Montanhas-russas, pêndulos e projéteis se resolvem por conservação de energia.') ],
+    examples:[ {q:'queda', steps:['E_c=U','½mv²=mgh','v=\\sqrt{2gh}']} ],
+    cards:[['Energia potencial','mgh'],['Conservação','E_c+U=const'],['Velocidade na queda','\\sqrt{2gh}']],
+    pool:[
+      nu(1,'Energia potencial de 5 kg a 4 m (g=10)? (J)',200,0.5,'U=mgh.','5·10·4=200.'),
+      nu(2,'De que velocidade um corpo chega ao solo caindo de 5 m? (g=10, m/s)',10,0.5,'v=√(2gh).','√(2·10·5)=10.'),
+      tf(2,'A energia mecânica se conserva mesmo havendo atrito. Verdadeiro?',false,'Atrito dissipa.','Falso.'),
+    ]},
+
+  /* -------- M5: Momento e Colisões -------- */
+  { id:'fis-momento', mod:FM5, level:'sup', title:'Momento linear e impulso', icon:'🎱', method:'Quantidade de movimento', gen:[genMomentum,genImpulse],
+    theory:[ MET('Momento linear mede a "quantidade de movimento"; o impulso de uma força o altera.'),
+      F('\\vec p=m\\vec v,\\qquad \\vec J=\\vec F\\,\\Delta t=\\Delta \\vec p'),
+      ERR('Erro comum: confundir momento (mv) com energia cinética (½mv²) — são coisas diferentes.'),
+      WHY('Explica recuo de armas, propulsão de foguetes e impactos.') ],
+    examples:[ {q:'p', steps:['m=2, v=5','p=10 kg·m/s']} ],
+    cards:[['Momento linear','m\\vec v'],['Impulso','\\vec F\\Delta t=\\Delta \\vec p']],
+    pool:[
+      nu(1,'Momento de 3 kg a 4 m/s? (kg·m/s)',12,0.5,'p=mv.','3·4=12.'),
+      nu(2,'Impulso de 5 N por 3 s? (N·s)',15,0.5,'J=FΔt.','5·3=15.'),
+      mc(2,'O impulso de uma força é igual à variação de:',['energia','momento linear','massa','aceleração'],1,'J=Δp.','momento linear.'),
+    ]},
+  { id:'fis-colisoes', mod:FM5, level:'sup', title:'Colisões', icon:'💥', method:'Conservação do momento',
+    theory:[ MET('Em qualquer colisão isolada, o momento total antes é igual ao momento total depois.'),
+      F('m_1 v_1+m_2 v_2 = m_1 v_1\'+m_2 v_2\''),
+      P('Elástica: conserva energia cinética. Inelástica: parte da energia vira calor/deformação (na perfeitamente inelástica, os corpos seguem juntos).'),
+      ERR('Erro comum: supor que a energia cinética se conserva em toda colisão. Só nas elásticas.'),
+      WHY('Análise de impactos, acidentes e física de partículas.') ],
+    examples:[ {q:'grudam', steps:['2·3 = (2+4)·v','v=6/6=1 m/s']} ],
+    cards:[['Colisão: conserva','momento total'],['Elástica','conserva também E_c']],
+    pool:[
+      nu(2,'Um carro de 2 kg a 3 m/s bate e gruda num de 4 kg parado. Velocidade do conjunto? (m/s)',1,0.05,'m₁v₁=(m₁+m₂)v.','6/6=1.'),
+      tf(2,'A energia cinética se conserva em toda colisão. Verdadeiro?',false,'Só nas elásticas.','Falso.'),
+      mc(1,'Numa colisão isolada, sempre se conserva o:',['calor','momento total','volume','atrito'],1,'Lei de conservação.','momento total.'),
+    ]},
+
+  /* -------- M6: Rotação -------- */
+  { id:'fis-rot-cin', mod:FM6, level:'sup', title:'Cinemática de rotação', icon:'🎡', method:'Ângulo, ω e α', gen:[genRotV],
+    theory:[ MET('A rotação tem análogos da cinemática linear: posição→ângulo θ, velocidade→ω, aceleração→α.'),
+      F('v=\\omega r,\\qquad \\omega=\\omega_0+\\alpha t'),
+      ERR('Erro comum: usar a velocidade linear e a angular como se fossem a mesma coisa. Ligam-se por v=ωr.'),
+      WHY('Rodas, turbinas e engrenagens são descritas pela cinemática de rotação.') ],
+    examples:[ {q:'v=\\omega r', steps:['ω=3, r=2','v=6 m/s']} ],
+    cards:[['Velocidade linear ↔ angular','v=\\omega r'],['ω (MRUV angular)','\\omega_0+\\alpha t']],
+    pool:[
+      nu(1,'Um ponto a 2 m do eixo gira a ω=3 rad/s. Velocidade linear? (m/s)',6,0.1,'v=ωr.','3·2=6.'),
+      mc(2,'O análogo rotacional da velocidade linear é a:',['aceleração','velocidade angular ω','força','massa'],1,'θ, ω, α.','velocidade angular ω.'),
+      tf(1,'Todos os pontos de um disco rígido têm a mesma velocidade angular ω. Verdadeiro?',true,'ω é do corpo todo.','Verdadeiro.'),
+    ]},
+  { id:'fis-rot-din', mod:FM6, level:'sup', title:'Torque e dinâmica de rotação', icon:'🔧', method:'Força × braço', gen:[genTorque],
+    theory:[ MET('Torque é o "empurrão de giro": depende da força e da distância ao eixo (braço).'),
+      F('\\tau=r F\\sin\\theta,\\qquad \\tau_{res}=I\\alpha'),
+      P('I é o momento de inércia (o análogo rotacional da massa).'),
+      ERR('Erro comum: ignorar o braço. A mesma força perto do eixo gira menos que longe dele.'),
+      WHY('Chaves de boca, portas e motores: tudo é torque.') ],
+    examples:[ {q:'\\tau=rF', steps:['r=2, F=5','τ=10 N·m']} ],
+    cards:[['Torque (perpendicular)','r F'],['2ª lei da rotação','\\tau=I\\alpha']],
+    pool:[
+      nu(1,'Torque de 5 N a 2 m do eixo (perpendicular)? (N·m)',10,0.5,'τ=rF.','2·5=10.'),
+      mc(1,'O torque depende da força e:',['da cor','da distância ao eixo (braço)','da temperatura','do tempo'],1,'τ=rF.','do braço.'),
+      tf(2,'O momento de inércia é o análogo rotacional da massa. Verdadeiro?',true,'τ=Iα.','Verdadeiro.'),
+    ]},
+  { id:'fis-equilibrio', mod:FM6, level:'sup', title:'Equilíbrio de corpos rígidos', icon:'⚖️', method:'Forças e torques em equilíbrio',
+    theory:[ MET('Um corpo rígido está em equilíbrio quando a soma das forças E a soma dos torques são nulas.'),
+      F('\\sum \\vec F=0,\\qquad \\sum \\tau=0'),
+      P('Numa alavanca em equilíbrio: F₁·d₁ = F₂·d₂.'),
+      ERR('Erro comum: checar só as forças. Equilíbrio de corpo rígido exige também torque total zero.'),
+      WHY('Estruturas, pontes e balanças dependem do equilíbrio de torques.') ],
+    examples:[ {q:'alavanca', steps:['F_1 d_1 = F_2 d_2','10·2 = F·4 ⇒ F=5 N']} ],
+    cards:[['Equilíbrio: forças','\\sum \\vec F=0'],['Equilíbrio: torques','\\sum \\tau=0']],
+    pool:[
+      mc(1,'O equilíbrio de um corpo rígido exige:',['só ΣF=0','ΣF=0 e Στ=0','só Στ=0','nada'],1,'Translação e rotação.','ΣF=0 e Στ=0.'),
+      nu(2,'Numa gangorra, 10 N a 2 m equilibram que força a 4 m do apoio? (N)',5,0.1,'F₁d₁=F₂d₂.','20=F·4 ⇒ 5 N.'),
+      tf(2,'Se a soma das forças é zero, o corpo rígido está sempre em equilíbrio. Verdadeiro?',false,'Falta o torque.','Falso.'),
+    ]},
+];
+
+/* ============================ CURSOS ============================ */
+const COURSES = [
+  { id:'calc', title:'Cálculo', short:'Cálculo', icon:'📐', desc:'Do fim do fundamental ao Cálculo I', goal:'Meta: dominar Limite, Derivada e Integral 🎯', skills:CURR },
+  { id:'fisica', title:'Física Básica', short:'Física', icon:'🧲', desc:'Mecânica clássica — de vetores à rotação', goal:'Meta: cinemática, Newton, energia, momento e rotação 🧲', skills:FISICA },
+  { id:'aero', title:'Ciências Aeroespaciais', short:'Aeroespacial', icon:'🚀', desc:'Física para tecnologia aeroespacial', goal:'Meta: gravitação, fluidos, calor e ondas 🚀', skills:AERO },
+];
+COURSES.forEach(c=>{ c.modules=[...new Set(c.skills.map(s=>s.mod))]; });
+const findCourse=(id)=>COURSES.find(c=>c.id===id);
 
 /* seleção de questão */
 function pickIdx(pool, d, used){ const avail=pool.map((q,i)=>i).filter(i=>used.indexOf(i)<0); if(!avail.length) return null; avail.sort((a,b)=>Math.abs(pool[a].d-d)-Math.abs(pool[b].d-d)); return avail[0]; }
@@ -443,8 +971,9 @@ function nextExercise(skill, used, diff, preferGen){
 }
 
 /* ============================ ESTADO ============================ */
-const STORE_KEY = 'trilha_calculo_v3';
-const defaultState = () => ({ user:{ name:'', xp:0, streak:0, lastActive:0, diagnosticDone:false, simDays:0 }, skills:{}, reviews:[], log:[] });
+const STORE_KEY = 'trilha_estudos_v4';
+const emptyCourse = () => ({ diagnosticDone:false, skills:{}, reviews:[] });
+const defaultState = () => ({ user:{ name:'', xp:0, streak:0, lastActive:0, simDays:0 }, currentCourse:null, courses:{}, log:[] });
 function loadState(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultState(); } catch(e){ return defaultState(); } }
 function saveState(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
 
@@ -458,25 +987,33 @@ function useApp(){
   useEffect(()=>saveState(state), [state]);
   const now = ()=> todayKey(state.user.simDays);
   const bumpStreak = (s)=>{ const t=todayKey(s.user.simDays); const last=s.user.lastActive; if(last===t) return s.user.streak; if(last===t-DAY) return s.user.streak+1; return 1; };
+  const course = state.currentCourse ? findCourse(state.currentCourse) : null;
+  const cp = state.currentCourse ? (state.courses[state.currentCourse] || emptyCourse()) : emptyCourse();
 
-  const addXp = useCallback((amount, note)=>{ setState(s=>{ const streak=bumpStreak(s); const t=todayKey(s.user.simDays); return {...s, user:{...s.user, xp:s.user.xp+amount, streak, lastActive:t}, log:[{ts:Date.now(),note,xp:amount},...s.log].slice(0,50)}; }); },[]);
-  const scheduleReviews = (s, skillId)=>{ const t=todayKey(s.user.simDays); const others=s.reviews.filter(r=>r.skillId!==skillId); const news=REVIEW_STAGES.map((d,i)=>({skillId,due:t+d*DAY,stage:i})); return [...others,...news]; };
+  const freshDaily=(t)=>({date:t, q:0, lessons:0, xp:0, claimed:[]});
+  const dayOf=(u,t)=> (u.daily && u.daily.date===t) ? u.daily : freshDaily(t);
+  const daily = dayOf(state.user, todayKey(state.user.simDays));
 
-  const masterSkill = useCallback((skillId, score, lvl)=>{ setState(s=>{ const skills={...s.skills,[skillId]:{status:'mastered',best:Math.max(score,s.skills[skillId]?.best||0),lvl:lvl||s.skills[skillId]?.lvl||1}}; const idx=CURR.findIndex(x=>x.id===skillId); const next=CURR[idx+1]; if(next && (!skills[next.id]||skills[next.id].status==='locked')) skills[next.id]={status:'available',best:0,lvl:1}; const reviews=scheduleReviews(s,skillId); return {...s,skills,reviews}; }); },[]);
-  const completeReview = useCallback((skillId)=>{ setState(s=>{ const t=todayKey(s.user.simDays); const due=s.reviews.filter(r=>r.skillId===skillId && r.due<=t).sort((a,b)=>a.stage-b.stage); let reviews=s.reviews; if(due[0]) reviews=s.reviews.filter(r=>r!==due[0]); return {...s,reviews}; }); },[]);
+  const addXp = useCallback((amount, note, isBonus)=>{ setState(s=>{ const streak=bumpStreak(s); const t=todayKey(s.user.simDays); const d=dayOf(s.user,t); const nd={...d, xp:d.xp+amount, q:d.q+(isBonus?0:1)}; return {...s, user:{...s.user, xp:s.user.xp+amount, streak, lastActive:t, daily:nd}, log:[{ts:Date.now(),note,xp:amount},...(s.log||[])].slice(0,50)}; }); },[]);
+  const claimMission = useCallback((id, bonus)=>{ setState(s=>{ const t=todayKey(s.user.simDays); const d=dayOf(s.user,t); if(d.claimed.includes(id)) return s; return {...s, user:{...s.user, xp:s.user.xp+bonus, lastActive:t, streak:bumpStreak(s), daily:{...d, xp:d.xp+bonus, claimed:[...d.claimed,id]}}}; }); },[]);
 
-  const applyDiagnostic = useCallback((results)=>{ setState(s=>{ const skills={}; let reviews=[...s.reviews]; const t=todayKey(s.user.simDays);
-    CURR.forEach(sk=>{ skills[sk.id]={status:'locked',best:0,lvl:1}; });
+  const masterSkill = useCallback((skillId, score, lvl)=>{ setState(s=>{ const cid=s.currentCourse; const def=findCourse(cid); const cur=s.courses[cid]||emptyCourse(); const skills={...cur.skills,[skillId]:{status:'mastered',best:Math.max(score,cur.skills[skillId]?.best||0),lvl:lvl||cur.skills[skillId]?.lvl||1}}; const idx=def.skills.findIndex(x=>x.id===skillId); const next=def.skills[idx+1]; if(next && (!skills[next.id]||skills[next.id].status==='locked')) skills[next.id]={status:'available',best:0,lvl:1}; const t=todayKey(s.user.simDays); const others=cur.reviews.filter(r=>r.skillId!==skillId); const reviews=[...others,...REVIEW_STAGES.map((d,i)=>({skillId,due:t+d*DAY,stage:i}))]; const dd=dayOf(s.user,t); return {...s, user:{...s.user, daily:{...dd, lessons:dd.lessons+1}}, courses:{...s.courses,[cid]:{...cur,skills,reviews}}}; }); },[]);
+  const completeReview = useCallback((skillId)=>{ setState(s=>{ const cid=s.currentCourse; const cur=s.courses[cid]; const t=todayKey(s.user.simDays); const due=cur.reviews.filter(r=>r.skillId===skillId && r.due<=t).sort((a,b)=>a.stage-b.stage); let reviews=cur.reviews; if(due[0]) reviews=cur.reviews.filter(r=>r!==due[0]); return {...s,courses:{...s.courses,[cid]:{...cur,reviews}}}; }); },[]);
+
+  const applyDiagnostic = useCallback((results)=>{ setState(s=>{ const cid=s.currentCourse; const def=findCourse(cid); const cur=s.courses[cid]||emptyCourse(); const skills={}; let reviews=[...cur.reviews]; const t=todayKey(s.user.simDays);
+    def.skills.forEach(sk=>{ skills[sk.id]={status:'locked',best:0,lvl:1}; });
     Object.entries(results).forEach(([id,r])=>{ if(r.ok && skills[id]){ const score=r.d>=3?100:r.d>=2?85:70; skills[id]={status:'mastered',best:score,lvl:r.d}; REVIEW_STAGES.forEach((d,i)=>reviews.push({skillId:id,due:t+d*DAY,stage:i})); } });
-    const firstOpen=CURR.find(sk=>skills[sk.id].status!=='mastered'); if(firstOpen) skills[firstOpen.id]={...skills[firstOpen.id],status:'available'};
-    return {...s,skills,reviews,user:{...s.user,diagnosticDone:true}}; }); },[]);
+    const firstOpen=def.skills.find(sk=>skills[sk.id].status!=='mastered'); if(firstOpen) skills[firstOpen.id]={...skills[firstOpen.id],status:'available'};
+    return {...s,courses:{...s.courses,[cid]:{...cur,skills,reviews,diagnosticDone:true}}}; }); },[]);
 
   const setName = useCallback((name)=>setState(s=>({...s,user:{...s.user,name}})),[]);
+  const setCourse = useCallback((cid)=>setState(s=>({...s,currentCourse:cid,courses:{...s.courses,[cid]:s.courses[cid]||emptyCourse()}})),[]);
+  const exitCourse = useCallback(()=>setState(s=>({...s,currentCourse:null})),[]);
   const timeTravel = useCallback((days)=>setState(s=>({...s,user:{...s.user,simDays:s.user.simDays+days}})),[]);
   const reset = useCallback(()=>{ localStorage.removeItem(STORE_KEY); setState(defaultState()); },[]);
-  const dueReviews = useMemo(()=>{ const t=now(); const seen=new Set(); return state.reviews.filter(r=>r.due<=t).filter(r=>{ if(seen.has(r.skillId))return false; seen.add(r.skillId); return true; }); },[state.reviews,state.user.simDays]);
+  const dueReviews = useMemo(()=>{ const cid=state.currentCourse; const cur=cid?state.courses[cid]:null; if(!cur) return []; const t=now(); const seen=new Set(); return cur.reviews.filter(r=>r.due<=t).filter(r=>{ if(seen.has(r.skillId))return false; seen.add(r.skillId); return true; }); },[state.courses,state.currentCourse,state.user.simDays]);
 
-  return { state, now, addXp, masterSkill, completeReview, applyDiagnostic, setName, timeTravel, reset, dueReviews };
+  return { state, course, cp, daily, now, addXp, claimMission, masterSkill, completeReview, applyDiagnostic, setName, setCourse, exitCourse, timeTravel, reset, dueReviews };
 }
 
 /* ============================ UI base ============================ */
@@ -501,7 +1038,7 @@ function Exercise({item, mode, adaptive, onDone}){
   const shuffled = useMemo(()=> item.type==='order'? shuffle(item.steps.map((s,i)=>({s,i}))) : null, [item]);
   const [phase,setPhase]=useState('idle'); const [ok,setOk]=useState(false);
   const [showHint,setShowHint]=useState(false); const [showSol,setShowSol]=useState(false);
-  const isDiag = mode==='diag';
+  const isDiag = mode==='diag'||mode==='exam';
 
   const canCheck = type==='mc' ? sel!=null : item.type==='num' ? numVal.trim()!=='' : item.type==='order' ? orderPick.length===item.steps.length : false;
 
@@ -519,18 +1056,18 @@ function Exercise({item, mode, adaptive, onDone}){
 
   return (<div className="fade-in">
     <div className="flex flex-wrap gap-2 mb-2">
-      {item.src && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':'📗'} {item.src}</span>}
+      {item.src && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':item.src==='Guidorizzi'?'📗':'📄'} {item.src}</span>}
       {typeBadge && <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 font-medium">🧠 {typeBadge}</span>}
       {item.gen && <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">♾️ gerado</span>}
     </div>
-    <div className="text-slate-800 text-lg mb-4 leading-relaxed"><M tex={prompt} block/></div>
+    <div className="text-slate-800 text-lg mb-4 leading-relaxed"><Rich s={prompt} block/></div>
     {item.type==='err' && <p className="text-sm text-slate-500 -mt-2 mb-3">Toque no passo que contém o erro:</p>}
 
     {type==='mc' ? (
       <div className="grid gap-2">{options.map((opt,i)=>{ const chosen=sel===i; const right=phase==='result'&&i===correct; const wrong=phase==='result'&&chosen&&i!==correct;
         return <button key={i} disabled={phase==='result'} onClick={()=>phase!=='result'&&setSel(i)}
           className={"text-left px-4 py-3 rounded-xl border-2 transition min-h-[52px] "+(right?'border-teal-500 bg-teal-50':wrong?'border-red-400 bg-red-50 shake':chosen?'border-teal-500 bg-teal-50':'border-slate-200 bg-white active:scale-[.99]')}>
-          {item.type==='err' && <span className="text-slate-400 mr-2">{i+1}.</span>}{hasTex(opt)?<M tex={opt}/>:<span>{opt}</span>}</button>; })}</div>
+          {item.type==='err' && <span className="text-slate-400 mr-2">{i+1}.</span>}<Rich s={opt}/></button>; })}</div>
     ) : item.type==='num' ? (
       <input type="text" inputMode="decimal" value={numVal} disabled={phase==='result'} onChange={e=>setNumVal(e.target.value)} placeholder="Digite sua resposta"
         className={"w-full px-4 py-3 rounded-xl border-2 text-lg outline-none "+(phase==='result'?(ok?'border-teal-500 bg-teal-50':'border-red-400 bg-red-50 shake'):'border-slate-200 focus:border-teal-400')}/>
@@ -540,12 +1077,12 @@ function Exercise({item, mode, adaptive, onDone}){
           return <button key={pi} disabled={phase==='result'} onClick={()=>phase!=='idle'?null:toggleOrder(pi)}
             className={"flex items-center gap-2 text-left px-4 py-3 rounded-xl border-2 min-h-[52px] "+(chosen?'border-teal-500 bg-teal-50':'border-slate-200 bg-white active:scale-[.99]')}>
             <span className={"w-6 h-6 shrink-0 rounded-full grid place-items-center text-xs font-bold "+(chosen?'bg-teal-500 text-white':'bg-slate-100 text-slate-400')}>{chosen?pos+1:''}</span>
-            {hasTex(o.s)?<M tex={o.s}/>:<span>{o.s}</span>}</button>; })}</div>
+            <Rich s={o.s}/></button>; })}</div>
       </div>
     )}
 
     {phase==='result' && ok && <div className="mt-3 text-teal-700 font-semibold pop">✅ Isso aí!</div>}
-    {phase==='result' && !ok && <div className="mt-3 text-sm text-red-600">{isDiag?'Sem problema — isso entra na sua trilha.':'Não foi dessa vez. 💪'}</div>}
+    {phase==='result' && !ok && <div className="mt-3 text-sm text-red-600">{mode==='exam'?'Resposta incorreta.':mode==='diag'?'Sem problema — isso entra na sua trilha.':'Não foi dessa vez. 💪'}</div>}
     {phase==='result' && item.type==='order' && <div className="mt-2 text-sm text-slate-600">Ordem correta: {item.steps.map((s,i)=><span key={i} className="inline-block mr-2">{i+1}) <T s={s}/></span>)}</div>}
 
     {(showHint || (phase==='result' && !ok && item.hint)) && item.hint && <div className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">💡 <b>Dica:</b> {item.hint}</div>}
@@ -578,10 +1115,10 @@ function Flashcards({skill, onDone}){
     <div className={"flip "+(flip?'flipped':'')} onClick={()=>setFlip(f=>!f)} style={{minHeight:180}}>
       <div className="flip-inner" style={{minHeight:180}}>
         <div className="flip-face bg-white border-2 border-teal-200 rounded-2xl grid place-items-center p-6 text-center" style={{minHeight:180}}>
-          <div><div className="text-[11px] uppercase tracking-wide text-teal-500 mb-2">Frente</div><div className="text-xl text-slate-800">{hasTex(c[0])?<M tex={c[0]} block/>:c[0]}</div></div>
+          <div><div className="text-[11px] uppercase tracking-wide text-teal-500 mb-2">Frente</div><div className="text-xl text-slate-800"><Rich s={c[0]} block/></div></div>
         </div>
         <div className="flip-face flip-back bg-teal-600 text-white rounded-2xl grid place-items-center p-6 text-center" style={{minHeight:180}}>
-          <div><div className="text-[11px] uppercase tracking-wide text-teal-100 mb-2">Verso</div><div className="text-xl">{hasTex(c[1])?<M tex={c[1]} block/>:c[1]}</div></div>
+          <div><div className="text-[11px] uppercase tracking-wide text-teal-100 mb-2">Verso</div><div className="text-xl"><Rich s={c[1]} block/></div></div>
         </div>
       </div>
     </div>
@@ -594,8 +1131,8 @@ function Flashcards({skill, onDone}){
 function GuidedExample({ex}){
   const [shown,setShown]=useState(0);
   return (<div className="bg-white rounded-xl p-4 border border-slate-100">
-    <M tex={ex.q} block/>
-    <div className="mt-2 space-y-1">{ex.steps.slice(0,shown).map((s,j)=><div key={j} className="text-sm text-slate-600 flex gap-2 fade-in"><span className="text-teal-500">{j+1}.</span><M tex={s}/></div>)}</div>
+    <div className="text-center"><Rich s={ex.q} block/></div>
+    <div className="mt-2 space-y-1">{ex.steps.slice(0,shown).map((s,j)=><div key={j} className="text-sm text-slate-600 flex gap-2 fade-in"><span className="text-teal-500">{j+1}.</span><Rich s={s}/></div>)}</div>
     {shown<ex.steps.length ? <button onClick={()=>setShown(shown+1)} className="mt-3 text-sm text-teal-600 font-medium border border-teal-200 rounded-lg px-3 py-1.5">Mostrar próximo passo →</button>
       : <div className="mt-3 text-xs text-teal-600">✓ Resolução completa</div>}
   </div>);
@@ -641,20 +1178,20 @@ function AdaptiveExercises({skill, startDiff, target, escalate, reviewMode, onCo
 /* ============================ Telas ============================ */
 function Onboarding({app}){ const [name,setName]=useState('');
   return (<div className="max-w-xl mx-auto px-5 pt-10 pb-24 text-center fade-in">
-    <div className="text-6xl mb-4">📐</div><h1 className="text-2xl font-bold text-slate-800">Trilha de Cálculo</h1>
-    <p className="text-slate-500 mt-2 mb-8">Do fundamental ao Cálculo I. Diagnóstico adaptativo, trilha sob medida, exercícios infinitos, flashcards e revisões inteligentes.</p>
+    <div className="text-6xl mb-4">🎓</div><h1 className="text-2xl font-bold text-slate-800">Trilha de Estudos</h1>
+    <p className="text-slate-500 mt-2 mb-8">Cálculo e Ciências Aeroespaciais. Diagnóstico adaptativo, trilha sob medida, exercícios infinitos, flashcards e revisões inteligentes.</p>
     <input value={name} onChange={e=>setName(e.target.value)} placeholder="Como podemos te chamar?" className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-400 outline-none text-center mb-3"/>
     <button disabled={!name.trim()} onClick={()=>app.setName(name.trim())} className="w-full bg-teal-600 disabled:opacity-40 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Começar</button>
     <p className="text-xs text-slate-400 mt-6">Seu progresso fica salvo só neste aparelho.</p></div>); }
 
 function Diagnostic({app}){
   const [st,setSt]=useState(()=>({ i:0, curDiff:2, bandStreak:0, results:{} }));
-  const skill=CURR[st.i]; const item=pickDiagItem(skill, st.curDiff);
+  const CURR=app.course.skills; const skill=CURR[st.i]; const item=pickDiagItem(skill, st.curDiff);
   const answer=(correct)=>{
     const results={...st.results,[skill.id]:{ok:correct,d:st.curDiff}};
     let bandStreak=correct?st.bandStreak+1:0; let curDiff=correct?Math.min(3,st.curDiff+1):Math.max(1,st.curDiff-1);
     let next=st.i+1; const band=skill.level;
-    if(band!=='sup' && bandStreak>=2){ while(next<CURR.length && CURR[next].level===band){ results[CURR[next].id]={ok:true,d:st.curDiff,skip:true}; next++; } }
+    if(app.course.id==='calc' && band!=='sup' && bandStreak>=2){ while(next<CURR.length && CURR[next].level===band){ results[CURR[next].id]={ok:true,d:st.curDiff,skip:true}; next++; } }
     if(next>=CURR.length){ app.applyDiagnostic(results); return; }
     if(CURR[next].level!==band){ curDiff=2; bandStreak=0; }
     setSt({i:next,curDiff,bandStreak,results});
@@ -663,7 +1200,7 @@ function Diagnostic({app}){
   return (<div className="max-w-xl mx-auto px-5 pt-6 pb-24">
     <div className="mb-4"><div className="flex justify-between text-xs text-slate-500 mb-1"><span>Teste de nível adaptativo</span><span>{answered} respondidas</span></div><Bar value={(st.i/CURR.length)*100}/></div>
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-      <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{LEVEL_LABEL[skill.level]}</p><DiffChip d={st.curDiff}/></div>
+      <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{skill.mod}</p><DiffChip d={st.curDiff}/></div>
       <Exercise key={st.i} mode="diag" adaptive={false} item={{...item, hint:item.hint||'Se não lembrar, tudo bem — entra na sua trilha.'}} onDone={answer}/>
     </div>
     <p className="text-center text-xs text-slate-400 mt-4">A dificuldade sobe quando você acerta e desce quando erra. Acertos você pula (voltam em revisão).</p>
@@ -677,15 +1214,16 @@ function SkillCard({skill, st, onOpen}){ const locked=!st||st.status==='locked';
     {mastered && <span className="text-xs text-teal-600 font-semibold">Dominado</span>}
     {st?.status==='available' && <span className="text-xs text-teal-600 font-semibold">Começar →</span>}</button>); }
 
-function Trilha({app, openSkill}){ const {skills}=app.state; const byMod=MODULES.map(m=>({mod:m,items:CURR.filter(s=>s.mod===m)})); const total=CURR.length; const done=Object.values(skills).filter(x=>x.status==='mastered').length;
+function Trilha({app, openSkill, onMap}){ const skills=app.cp.skills; const CURR=app.course.skills; const MODULES=app.course.modules; const byMod=MODULES.map(m=>({mod:m,items:CURR.filter(s=>s.mod===m)})); const total=CURR.length; const done=Object.values(skills).filter(x=>x.status==='mastered').length;
   return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
-    <div className="bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 mb-5"><div className="text-sm opacity-90">Progresso da trilha</div><div className="text-3xl font-bold my-1">{done}/{total}</div><Bar value={(done/total)*100} className="bg-teal-700/40 mt-2"/><div className="text-xs opacity-90 mt-2">Meta: dominar Limite, Derivada e Integral 🎯</div></div>
+    <div className="bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 mb-5"><div className="text-sm opacity-90">{app.course.icon} {app.course.title}</div><div className="text-3xl font-bold my-1">{done}/{total}</div><Bar value={(done/total)*100} className="bg-teal-700/40 mt-2"/><div className="text-xs opacity-90 mt-2">{app.course.goal}</div></div>
+    <button onClick={onMap} className="w-full mb-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium active:scale-[.99]">🗺️ Ver mapa mental do curso</button>
     {byMod.map(({mod,items})=>(<div key={mod} className="mb-6"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 px-1">{mod}</h3><div className="grid gap-2">{items.map(s=><SkillCard key={s.id} skill={s} st={skills[s.id]} onOpen={()=>openSkill(s.id)}/>)}</div></div>))}
   </div>); }
 
 function Lesson({app, skillId, onDone, reviewMode}){
-  const skill=CURR.find(s=>s.id===skillId); const [tab,setTab]=useState(reviewMode?'ex':'learn');
-  const skState=app.state.skills[skillId];
+  const skill=app.course.skills.find(s=>s.id===skillId); const [tab,setTab]=useState(reviewMode?'ex':'learn');
+  const skState=app.cp.skills[skillId];
   const startDiff = reviewMode ? (skState?.lvl||2) : (skState?.status==='mastered' ? (skState?.lvl||1) : 1);
   const onCorrect=()=>app.addXp(reviewMode?15:10, (reviewMode?'Revisão: ':'Exercício: ')+skill.title);
   const finish=(bestDiff)=>{ if(reviewMode){ app.completeReview(skillId); } else { const score=bestDiff>=3?100:bestDiff>=2?85:70; app.masterSkill(skillId,score,bestDiff); } onDone(true); };
@@ -700,14 +1238,15 @@ function Lesson({app, skillId, onDone, reviewMode}){
 
     {tab==='learn' ? (<div className="fade-in">
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">{skill.theory.map((b,i)=>{
-        if(b.t==='p') return <p key={i} className="text-slate-700 leading-relaxed mb-3">{b.c}</p>;
+        if(b.t==='p') return <p key={i} className="text-slate-700 leading-relaxed mb-3"><Rich s={b.c}/></p>;
         if(b.t==='f') return <div key={i} className="bg-slate-50 rounded-lg py-2 px-3 mb-3"><M tex={b.c} block/></div>;
-        if(b.t==='tip') return <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-amber-800 text-sm">💡 {b.c}</div>;
-        if(b.t==='met') return <div key={i} className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5 mb-3">🎓 {b.c}</div>;
-        if(b.t==='err') return <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-red-700 text-sm">⚠️ {b.c}</div>;
-        if(b.t==='why') return <div key={i} className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-indigo-700 text-sm">🎯 <b>Por que importa:</b> {b.c}</div>;
+        if(b.t==='tip') return <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-amber-800 text-sm">💡 <Rich s={b.c}/></div>;
+        if(b.t==='met') return <div key={i} className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2.5 mb-3">🎓 <Rich s={b.c}/></div>;
+        if(b.t==='err') return <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-red-700 text-sm">⚠️ <Rich s={b.c}/></div>;
+        if(b.t==='why') return <div key={i} className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-indigo-700 text-sm">🎯 <b>Por que importa:</b> <Rich s={b.c}/></div>;
         return null; })}</div>
       {skill.examples?.length>0 && (<div className="mt-4"><h4 className="text-sm font-bold text-slate-600 mb-2 px-1">Exemplo guiado (revele passo a passo)</h4>{skill.examples.map((ex,i)=><div key={i} className="mb-2"><GuidedExample ex={ex}/></div>)}</div>)}
+      <FeynmanCard skill={skill}/>
       <a href={"https://www.symbolab.com/solver/step-by-step/"+encodeURIComponent(skill.title)} target="_blank" rel="noopener" className="block text-center text-sm text-teal-600 mt-4 underline">🔎 Ver mais exemplos no Symbolab</a>
       <button onClick={()=>setTab('cards')} className="w-full mt-4 border-2 border-teal-200 text-teal-700 font-semibold py-3 rounded-xl">🃏 Revisar cartões</button>
       <button onClick={()=>setTab('ex')} className="w-full mt-2 bg-teal-600 text-white font-semibold py-3.5 rounded-xl active:scale-[.98]">Praticar exercícios →</button>
@@ -721,7 +1260,7 @@ function Lesson({app, skillId, onDone, reviewMode}){
 /* ============================ Praticar (treino livre) ============================ */
 function PracticeSession({app, skill, onExit}){
   // skill pode ser um objeto skill ou null (mistão)
-  const unlocked = CURR.filter(s=> ['available','mastered'].includes(app.state.skills[s.id]?.status));
+  const unlocked = app.course.skills.filter(s=> ['available','mastered'].includes(app.cp.skills[s.id]?.status));
   const chooseSkill = ()=> skill || pick(unlocked);
   const build=()=>{ const s=chooseSkill(); const n=nextExercise(s, [], ri(1,3), true); const it=n.__idx!=null? s.pool[n.__idx] : n; return {s, it}; };
   const [cur,setCur]=useState(build); const [count,setCount]=useState(0); const [hits,setHits]=useState(0); const [tick,setTick]=useState(0);
@@ -736,14 +1275,16 @@ function PracticeSession({app, skill, onExit}){
 }
 function Practice({app}){
   const [sel,setSel]=useState(undefined); // undefined=menu, null=mistão, skill=obj
-  const unlocked = CURR.filter(s=> ['available','mastered'].includes(app.state.skills[s.id]?.status));
+  const unlocked = app.course.skills.filter(s=> ['available','mastered'].includes(app.cp.skills[s.id]?.status));
+  if(sel==='simulado') return <SimuladoSession app={app} onExit={()=>setSel(undefined)}/>;
   if(sel!==undefined) return <PracticeSession app={app} skill={sel} onExit={()=>setSel(undefined)}/>;
   return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
     <h1 className="text-2xl font-bold text-slate-800 mb-1">Praticar 💪</h1>
     <p className="text-slate-500 text-sm mb-5">Treino livre e ilimitado. Sem travar avanço — só repetição pra fixar.</p>
     {unlocked.length===0 ? <p className="text-sm text-slate-400">Desbloqueie tópicos na trilha para praticar.</p> : (<>
       <button onClick={()=>setSel(null)} className="w-full bg-gradient-to-br from-purple-600 to-purple-500 text-white rounded-2xl p-5 text-left active:scale-[.99] mb-4">
-        <div className="text-2xl">🎲</div><div className="text-lg font-bold">Mistão</div><div className="text-sm opacity-90">Questões sorteadas de todos os tópicos liberados</div></button>
+        <div className="text-2xl">🎲</div><div className="text-lg font-bold">Mistão</div><div className="text-sm opacity-90">Intercalação: questões sorteadas de todos os tópicos liberados</div></button>
+      <button onClick={()=>setSel('simulado')} className="w-full bg-gradient-to-br from-rose-600 to-rose-500 text-white rounded-2xl p-5 text-left active:scale-[.99] mb-4"><div className="text-2xl">📝</div><div className="text-lg font-bold">Simulado</div><div className="text-sm opacity-90">Prova cronometrada com 8 questões — estudo ativo</div></button>
       <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 px-1">Por tópico</h3>
       <div className="grid gap-2">{unlocked.map(s=>(<button key={s.id} onClick={()=>setSel(s)} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm text-left active:scale-[.99]">
         <div className="w-10 h-10 rounded-xl bg-teal-100 grid place-items-center text-lg">{s.icon}</div>
@@ -752,13 +1293,15 @@ function Practice({app}){
   </div>);
 }
 
-function Home({app, openSkill, startReview, goTrilha, goPractice}){ const {user}=app.state; const due=app.dueReviews; const nextSkill=CURR.find(s=>app.state.skills[s.id]?.status==='available'); const hour=new Date().getHours(); const greet=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
+function Home({app, openSkill, startReview, goTrilha, goPractice}){ const {user}=app.state; const due=app.dueReviews; const nextSkill=app.course.skills.find(s=>app.cp.skills[s.id]?.status==='available'); const hour=new Date().getHours(); const greet=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
   return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
+    <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-1">{app.course.icon} {app.course.title}</span><button onClick={app.exitCourse} className="text-xs text-slate-500 underline">Trocar curso</button></div>
     <div className="mb-5"><p className="text-slate-500 text-sm">{greet},</p><h1 className="text-2xl font-bold text-slate-800">{user.name} 👋</h1></div>
     <div className="grid grid-cols-2 gap-3 mb-5">
       <div className="bg-white rounded-2xl p-4 border border-slate-100 text-center"><div className="text-3xl">🔥</div><div className="text-2xl font-bold text-slate-800">{user.streak}</div><div className="text-xs text-slate-500">dias seguidos</div></div>
       <div className="bg-white rounded-2xl p-4 border border-slate-100 text-center"><div className="text-3xl">{levelOf(user.xp).emoji}</div><div className="text-lg font-bold text-slate-800">{levelOf(user.xp).name}</div><div className="text-xs text-slate-500">{user.xp} XP</div></div></div>
-    {due.length>0 && (<div className="mb-5"><h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">🔁 Revisões de hoje <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full">{due.length}</span></h3><div className="grid gap-2">{due.map(r=>{ const sk=CURR.find(s=>s.id===r.skillId); const label=r.stage===0?'no mesmo dia':r.stage===1?'1 semana depois':'1 mês depois';
+    <DailyMissions app={app}/>
+    {due.length>0 && (<div className="mb-5"><h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">🔁 Revisões de hoje <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full">{due.length}</span></h3><div className="grid gap-2">{due.map(r=>{ const sk=app.course.skills.find(s=>s.id===r.skillId); const label=r.stage===0?'no mesmo dia':r.stage===1?'1 semana depois':'1 mês depois';
       return (<button key={r.skillId} onClick={()=>startReview(r.skillId)} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-orange-50 border border-orange-200 text-left active:scale-[.99]"><div className="w-10 h-10 rounded-xl bg-orange-100 grid place-items-center text-lg">{sk.icon}</div><div className="flex-1"><div className="font-semibold text-slate-800 text-sm">{sk.title}</div><div className="text-xs text-orange-600">Revisão {label}</div></div><span className="text-orange-500 text-sm font-semibold">+15 XP</span></button>); })}</div></div>)}
     <h3 className="text-sm font-bold text-slate-700 mb-2">Continuar aprendendo</h3>
     {nextSkill ? (<button onClick={()=>openSkill(nextSkill.id)} className="w-full bg-gradient-to-br from-teal-600 to-teal-500 text-white rounded-2xl p-5 text-left active:scale-[.99]"><div className="text-xs opacity-90 mb-1">{nextSkill.mod}</div><div className="flex items-center gap-2"><span className="text-2xl">{nextSkill.icon}</span><span className="text-lg font-bold">{nextSkill.title}</span></div><div className="mt-3 inline-block bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">Iniciar aula →</div></button>) : (<div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 text-center"><div className="text-3xl mb-1">🏆</div><p className="font-semibold text-teal-800">Você concluiu toda a trilha!</p><p className="text-sm text-teal-600 mt-1">Continue nas revisões e na prática.</p></div>)}
@@ -768,31 +1311,186 @@ function Home({app, openSkill, startReview, goTrilha, goPractice}){ const {user}
     </div>
   </div>); }
 
-function Profile({app}){ const {user}=app.state; const done=Object.values(app.state.skills).filter(x=>x.status==='mastered').length; const upcoming=[...app.state.reviews].sort((a,b)=>a.due-b.due).slice(0,6);
+function Profile({app, onPlano}){ const {user}=app.state; const done=Object.values(app.cp.skills).filter(x=>x.status==='mastered').length; const upcoming=[...app.cp.reviews].sort((a,b)=>a.due-b.due).slice(0,6);
   return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28">
     <div className="text-center mb-6"><div className="text-5xl">{levelOf(user.xp).emoji}</div><h2 className="text-xl font-bold text-slate-800 mt-1">{user.name}</h2><p className="text-slate-500 text-sm">{levelOf(user.xp).name} · {user.xp} XP</p></div>
-    <div className="grid grid-cols-3 gap-3 mb-6 text-center"><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">🔥{user.streak}</div><div className="text-xs text-slate-500">streak</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{done}</div><div className="text-xs text-slate-500">dominados</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{app.state.reviews.length}</div><div className="text-xs text-slate-500">revisões</div></div></div>
+    <div className="grid grid-cols-3 gap-3 mb-6 text-center"><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">🔥{user.streak}</div><div className="text-xs text-slate-500">streak</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{done}</div><div className="text-xs text-slate-500">dominados</div></div><div className="bg-white rounded-xl p-3 border border-slate-100"><div className="text-xl font-bold">{app.cp.reviews.length}</div><div className="text-xs text-slate-500">revisões</div></div></div>
+    <Badges app={app} done={done}/>
+    <div className="text-xs text-slate-500 mb-2">Curso atual: <b>{app.course.icon} {app.course.title}</b></div>
+    <button onClick={app.exitCourse} className="w-full mb-2 text-teal-700 text-sm py-2.5 border border-teal-200 rounded-xl bg-teal-50 font-medium">🔀 Trocar de curso</button>
+    <button onClick={onPlano} className="w-full mb-4 text-slate-700 text-sm py-2.5 border border-slate-200 rounded-xl bg-white font-medium">📋 Plano de estudos & métodos</button>
     <h3 className="text-sm font-bold text-slate-700 mb-2">🗓️ Próximas revisões</h3>
-    <div className="grid gap-2 mb-6">{upcoming.length===0 && <p className="text-sm text-slate-400">Nenhuma revisão agendada ainda.</p>}{upcoming.map((r,i)=>{const sk=CURR.find(s=>s.id===r.skillId); const t=app.now(); return <div key={i} className="flex items-center gap-2 bg-white rounded-xl p-3 border border-slate-100 text-sm"><span>{sk.icon}</span><span className="flex-1">{sk.title}</span><span className={r.due<=t?'text-orange-600 font-semibold':'text-slate-400'}>{r.due<=t?'hoje':fmtDate(r.due)}</span></div>;})}</div>
+    <div className="grid gap-2 mb-6">{upcoming.length===0 && <p className="text-sm text-slate-400">Nenhuma revisão agendada ainda.</p>}{upcoming.map((r,i)=>{const sk=app.course.skills.find(s=>s.id===r.skillId); const t=app.now(); return <div key={i} className="flex items-center gap-2 bg-white rounded-xl p-3 border border-slate-100 text-sm"><span>{sk.icon}</span><span className="flex-1">{sk.title}</span><span className={r.due<=t?'text-orange-600 font-semibold':'text-slate-400'}>{r.due<=t?'hoje':fmtDate(r.due)}</span></div>;})}</div>
     <div className="bg-slate-100 rounded-xl p-4"><p className="text-xs text-slate-500 mb-2">🧪 Demonstração — avance o tempo para ver as revisões espaçadas (D+7 e D+30):</p><div className="flex gap-2"><button onClick={()=>app.timeTravel(1)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+1 dia</button><button onClick={()=>app.timeTravel(7)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+7 dias</button><button onClick={()=>app.timeTravel(30)} className="flex-1 bg-white border border-slate-200 rounded-lg py-2 text-sm">+30 dias</button></div><button onClick={()=>{if(confirm('Zerar todo o progresso?'))app.reset();}} className="w-full mt-3 text-red-500 text-sm py-2">Reiniciar tudo</button></div>
   </div>); }
 
 function TabBar({tab, setTab, dueCount}){ const tabs=[['home','🏠','Início'],['trilha','🗺️','Trilha'],['practice','💪','Praticar'],['profile','👤','Perfil']];
   return (<div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 safe-b z-20"><div className="max-w-xl mx-auto flex">{tabs.map(([id,ic,label])=>(<button key={id} onClick={()=>setTab(id)} className={"flex-1 py-2.5 flex flex-col items-center gap-0.5 relative "+(tab===id?'text-teal-600':'text-slate-400')}><span className="text-xl">{ic}</span><span className="text-[11px] font-medium">{label}</span>{id==='home' && dueCount>0 && <span className="absolute top-1 right-1/4 bg-orange-500 text-white text-[10px] w-4 h-4 grid place-items-center rounded-full">{dueCount}</span>}</button>))}</div></div>); }
 
+/* ============================ Gamificação: missões e conquistas ============================ */
+const MISSIONS=[
+  {id:'q10', icon:'✏️', label:'Responda 10 questões', target:10, key:'q', bonus:30},
+  {id:'l1', icon:'📖', label:'Conclua 1 tópico', target:1, key:'lessons', bonus:20},
+  {id:'xp80', icon:'⭐', label:'Ganhe 80 XP hoje', target:80, key:'xp', bonus:25},
+];
+function DailyMissions({app}){ const d=app.daily;
+  return (<div className="mb-5"><h3 className="text-sm font-bold text-slate-700 mb-2">🎯 Missões de hoje</h3>
+    <div className="grid gap-2">{MISSIONS.map(m=>{ const cur=Math.min(d[m.key]||0, m.target); const done=cur>=m.target; const claimed=(d.claimed||[]).includes(m.id);
+      return (<div key={m.id} className="bg-white rounded-2xl p-3 border border-slate-100 flex items-center gap-3">
+        <div className="text-xl">{m.icon}</div>
+        <div className="flex-1"><div className="text-sm font-medium text-slate-800">{m.label}</div><Bar value={(cur/m.target)*100} className="mt-1"/><div className="text-[11px] text-slate-400 mt-0.5">{cur}/{m.target}</div></div>
+        {claimed ? <span className="text-teal-600 text-xs font-semibold">✓ feita</span> : done ? <button onClick={()=>app.claimMission(m.id,m.bonus)} className="bg-amber-400 text-amber-900 text-xs font-bold px-2.5 py-1.5 rounded-lg pop">+{m.bonus} XP</button> : <span className="text-[11px] text-slate-300">+{m.bonus}</span>}
+      </div>); })}</div></div>);
+}
+const BADGES=[
+  {id:'s3', icon:'🔥', name:'Constância', desc:'3 dias seguidos', has:(u,c)=>u.streak>=3},
+  {id:'s7', icon:'📅', name:'Semana cheia', desc:'7 dias seguidos', has:(u,c)=>u.streak>=7},
+  {id:'x500', icon:'💎', name:'500 XP', desc:'500 XP', has:(u,c)=>u.xp>=500},
+  {id:'x1000', icon:'👑', name:'1000 XP', desc:'1000 XP', has:(u,c)=>u.xp>=1000},
+  {id:'m5', icon:'🎯', name:'Aplicado', desc:'5 tópicos', has:(u,c)=>c.done>=5},
+  {id:'m10', icon:'🏅', name:'Dedicado', desc:'10 tópicos', has:(u,c)=>c.done>=10},
+];
+function Badges({app, done}){ const u=app.state.user; const ctx={done};
+  return (<div className="mb-6"><h3 className="text-sm font-bold text-slate-700 mb-2">🏆 Conquistas</h3>
+    <div className="grid grid-cols-3 gap-2">{BADGES.map(b=>{ const got=b.has(u,ctx);
+      return (<div key={b.id} className={"rounded-xl p-3 text-center border "+(got?'bg-amber-50 border-amber-200':'bg-slate-50 border-slate-100 opacity-50')}>
+        <div className="text-2xl">{got?b.icon:'🔒'}</div><div className="text-[11px] font-semibold text-slate-700 mt-1">{b.name}</div><div className="text-[10px] text-slate-400">{b.desc}</div></div>); })}</div></div>);
+}
+
+/* ============================ Mapa mental ============================ */
+const TINTS=['bg-teal-100 text-teal-700 border-teal-200','bg-indigo-100 text-indigo-700 border-indigo-200','bg-amber-100 text-amber-700 border-amber-200','bg-rose-100 text-rose-700 border-rose-200','bg-violet-100 text-violet-700 border-violet-200','bg-emerald-100 text-emerald-700 border-emerald-200'];
+function MindMap({course, onBack}){
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28 fade-in">
+    <button onClick={onBack} className="text-slate-500 text-sm mb-3">← Voltar</button>
+    <h1 className="text-2xl font-bold text-slate-800 mb-1">🗺️ Mapa mental</h1>
+    <p className="text-slate-500 text-sm mb-5">{course.icon} {course.title} — veja o todo e as conexões.</p>
+    <div className="text-center mb-4"><span className="inline-block bg-slate-800 text-white font-bold rounded-full px-5 py-2">{course.icon} {course.title}</span></div>
+    <div className="space-y-4">{course.modules.map((m,i)=>{ const items=course.skills.filter(s=>s.mod===m); const tint=TINTS[i%TINTS.length];
+      return (<div key={m} className="relative pl-4 border-l-2 border-slate-200">
+        <div className={"inline-block rounded-lg px-3 py-1.5 border font-semibold text-sm "+tint}>{m}</div>
+        <div className="flex flex-wrap gap-1.5 mt-2">{items.map(s=><span key={s.id} className="bg-white border border-slate-200 rounded-full px-2.5 py-1 text-xs text-slate-600">{s.icon} {s.title}</span>)}</div>
+      </div>); })}</div>
+    <p className="text-center text-xs text-slate-400 mt-6">💡 Use este mapa para se autoexplicar (Feynman) e revisar antes das provas.</p>
+  </div>);
+}
+
+/* ============================ Pomodoro (foco temporal) ============================ */
+function Pomodoro(){
+  const FOCO=25*60, PAUSA=5*60;
+  const [mode,setMode]=useState('foco'); const [left,setLeft]=useState(FOCO);
+  const [run,setRun]=useState(false); const [open,setOpen]=useState(false); const [cycles,setCycles]=useState(0);
+  useEffect(()=>{ if(!run) return; const id=setInterval(()=>{ setLeft(l=>{ if(l<=1){ if(mode==='foco'){ setMode('pausa'); setCycles(c=>c+1); return PAUSA; } setMode('foco'); return FOCO; } return l-1; }); },1000); return ()=>clearInterval(id); },[run,mode]);
+  const mmss=(s)=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  const reset=()=>{ setRun(false); setMode('foco'); setLeft(FOCO); };
+  return (<div className="fixed right-3 bottom-20 z-30">
+    {open ? (<div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-4 w-52 pop">
+      <div className="flex justify-between items-center mb-1"><span className="text-sm font-bold text-slate-700">🍅 Pomodoro</span><button onClick={()=>setOpen(false)} className="text-slate-400 text-sm">✕</button></div>
+      <div className={"text-center rounded-xl py-3 mb-2 "+(mode==='foco'?'bg-red-50 text-red-600':'bg-teal-50 text-teal-600')}><div className="text-[11px] uppercase tracking-wide">{mode==='foco'?'Foco (25 min)':'Pausa (5 min)'}</div><div className="text-3xl font-bold tabular-nums">{mmss(left)}</div></div>
+      <div className="flex gap-2"><button onClick={()=>setRun(r=>!r)} className="flex-1 bg-teal-600 text-white rounded-lg py-2 text-sm font-semibold">{run?'Pausar':'Iniciar'}</button><button onClick={reset} className="px-3 rounded-lg border border-slate-200 text-slate-500 text-sm">↺</button></div>
+      <div className="text-[11px] text-slate-400 text-center mt-2">Ciclos de foco: {cycles}</div>
+    </div>) : (<button onClick={()=>setOpen(true)} className={"w-14 h-14 rounded-full shadow-lg grid place-items-center text-white "+(run?(mode==='foco'?'bg-red-500':'bg-teal-500'):'bg-slate-700')}>{run? <span className="text-[11px] font-bold tabular-nums">{mmss(left)}</span> : <span className="text-2xl">🍅</span>}</button>)}
+  </div>);
+}
+
+/* ============================ Feynman (autoexplicação) ============================ */
+function FeynmanCard({skill}){
+  const [txt,setTxt]=useState(''); const [show,setShow]=useState(false);
+  const modelo = skill.theory.filter(b=>b.t==='p'||b.t==='met').slice(0,2);
+  return (<div className="mt-4 bg-violet-50 border border-violet-200 rounded-2xl p-4">
+    <h4 className="text-sm font-bold text-violet-700 mb-1">🧠 Autoexplicação (método Feynman)</h4>
+    <p className="text-xs text-violet-600 mb-2">Explique "{skill.title}" com suas palavras, como se ensinasse alguém — sem olhar o material. É o teste real de que você entendeu.</p>
+    <textarea value={txt} onChange={e=>setTxt(e.target.value)} rows={3} placeholder="Escreva sua explicação aqui..." className="w-full rounded-lg border border-violet-200 p-2 text-sm outline-none focus:border-violet-400"/>
+    <button onClick={()=>setShow(s=>!s)} className="mt-2 text-sm text-violet-700 font-medium border border-violet-300 rounded-lg px-3 py-1.5">{show?'Ocultar':'Comparar com a explicação-modelo'}</button>
+    {show && <div className="mt-2 text-sm text-slate-700 bg-white rounded-lg p-3 border border-violet-100">{modelo.map((b,i)=><p key={i} className="mb-1">{b.c}</p>)}</div>}
+  </div>);
+}
+
+/* ============================ Simulado (estudo ativo, cronometrado) ============================ */
+function SimuladoSession({app, onExit}){
+  const N=8;
+  const items = useMemo(()=>{ const un=app.course.skills.filter(s=>['available','mastered'].includes(app.cp.skills[s.id]?.status)); const arr=[]; for(let k=0;k<N;k++){ const s=pick(un); const n=nextExercise(s,[],ri(1,3),true); arr.push({s, it: n.__idx!=null? s.pool[n.__idx] : n}); } return arr; },[]);
+  const [i,setI]=useState(0); const [score,setScore]=useState(0); const [left,setLeft]=useState(N*90); const [done,setDone]=useState(false);
+  useEffect(()=>{ if(done) return; if(left<=0){ setDone(true); return; } const id=setInterval(()=>setLeft(l=>l-1),1000); return ()=>clearInterval(id); },[left,done]);
+  const mmss=(s)=>{ s=Math.max(0,s); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); };
+  const answer=(ok)=>{ if(ok){ setScore(x=>x+1); app.addXp(8,'Simulado: '+items[i].s.title); } if(i+1>=N) setDone(true); else setI(i+1); };
+  if(done) return (<div className="max-w-xl mx-auto px-4 pt-10 pb-28 text-center fade-in"><div className="text-5xl">📝</div><h2 className="text-xl font-bold text-slate-800 mt-2">Simulado concluído!</h2><p className="text-4xl font-bold text-teal-600 my-3">{score}/{N}</p><p className="text-sm text-slate-500 mb-6">{score>=Math.ceil(N*0.7)?'Mandou bem! 🎉':'Continue praticando e revise os tópicos que errou.'}</p><button onClick={onExit} className="bg-teal-600 text-white font-semibold px-6 py-3 rounded-xl">Voltar</button></div>);
+  return (<div className="max-w-xl mx-auto px-4 pt-3 pb-28">
+    <div className="flex items-center justify-between mb-3"><button onClick={onExit} className="text-slate-500 text-sm">← Sair</button><div className={"font-bold tabular-nums "+(left<60?'text-red-600':'text-slate-700')}>⏱ {mmss(left)}</div></div>
+    <div className="flex justify-between text-xs text-slate-500 mb-2"><span>Questão {i+1}/{N}</span><span>Acertos: {score}</span></div>
+    <Bar value={(i/N)*100} className="mb-3"/>
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm"><Exercise key={i} mode="exam" adaptive={false} item={items[i].it} onDone={answer}/></div>
+  </div>);
+}
+
+/* ============================ Plano de estudos (trilha + métodos) ============================ */
+function Plano({app, onBack, onMap}){
+  const PATH=[
+    {t:'Base — Play Cálculo', d:'Frações, potências, raízes, álgebra, fatoração e equações', dep:'ponto de partida'},
+    {t:'Ensino Médio', d:'Funções, afim, quadrática, exponencial/logaritmo, trigonometria', dep:'precisa da Base'},
+    {t:'Cálculo I', d:'Limites → Continuidade → Derivadas → Aplicações → Integrais', dep:'precisa de Funções'},
+    {t:'Física Básica (Mecânica)', d:'Vetores, cinemática, Newton, energia, momento, rotação', dep:'usa derivadas e integrais'},
+    {t:'Ciências Aeroespaciais', d:'Gravitação, fluidos, calor/termodinâmica, oscilações e ondas', dep:'usa Cálculo + Física'},
+  ];
+  const METHODS=[
+    ['🍅','Pomodoro','25 min de foco + 5 de pausa','timer flutuante (canto da tela)'],
+    ['🧠','Feynman / Autoexplicação','explique com suas palavras','card na aba Aprender'],
+    ['🔁','Repetição espaçada','revise em D+0, D+7 e D+30','revisões automáticas na Home'],
+    ['🃏','Flashcards','pergunta na frente, resposta no verso','aba Cartões de cada tópico'],
+    ['📝','Simulado / estudo ativo','resolva provas cronometradas','Praticar → Simulado'],
+    ['🔀','Intercalação (ciclo de estudos)','alterne tópicos, não um só','Praticar → Mistão'],
+    ['🗺️','Mapa mental','veja o todo e as conexões','este plano de estudos'],
+  ];
+  return (<div className="max-w-xl mx-auto px-4 pt-4 pb-28 fade-in">
+    <button onClick={onBack} className="text-slate-500 text-sm mb-3">← Voltar</button>
+    <h1 className="text-2xl font-bold text-slate-800 mb-1">📋 Plano de estudos</h1>
+    <p className="text-slate-500 text-sm mb-5">A ordem lógica do aprendizado — cada etapa apoia a próxima.</p>
+    <div className="pl-5 mb-8">{PATH.map((p,i)=>(<div key={i} className="relative pb-3 pl-4 border-l-2 border-teal-200 last:border-transparent">
+      <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-teal-500"></div>
+      <div className="bg-white rounded-xl p-3 border border-slate-100"><div className="font-bold text-slate-800 text-sm">{i+1}. {p.t}</div><div className="text-xs text-slate-500 mt-0.5">{p.d}</div><div className="text-[11px] text-teal-600 mt-1">↳ {p.dep}</div></div>
+    </div>))}</div>
+    <h2 className="text-lg font-bold text-slate-800 mb-2">🎓 Métodos de estudo</h2>
+    <p className="text-xs text-slate-500 mb-3">O app foi desenhado em torno de aprendizagem ativa. Cada técnica tem um lugar aqui:</p>
+    <div className="grid gap-2">{METHODS.map((m,i)=>(<div key={i} className="flex gap-3 bg-white rounded-xl p-3 border border-slate-100"><div className="text-2xl">{m[0]}</div><div className="flex-1"><div className="font-semibold text-slate-800 text-sm">{m[1]}</div><div className="text-xs text-slate-500">{m[2]}</div><div className="text-[11px] text-teal-600 mt-0.5">No app: {m[3]}</div></div></div>))}</div>
+    <h2 className="text-lg font-bold text-slate-800 mt-6 mb-2">🗺️ Mapas mentais</h2>
+    <p className="text-xs text-slate-500 mb-3">Esquema visual de cada curso — ótimo para revisar e se autoexplicar.</p>
+    <div className="grid gap-2">{COURSES.map(c=>(<button key={c.id} onClick={()=>onMap(c.id)} className="w-full flex items-center gap-3 bg-white rounded-xl p-3 border border-slate-100 text-left active:scale-[.99]"><span className="text-xl">{c.icon}</span><span className="flex-1 text-sm font-medium text-slate-800">{c.title}</span><span className="text-slate-400 text-sm">→</span></button>))}</div>
+  </div>);
+}
+
+/* ============================ Seletor de curso ============================ */
+function CoursePicker({app, onPlano}){
+  return (<div className="max-w-xl mx-auto px-4 pt-6 pb-28 fade-in">
+    <h1 className="text-2xl font-bold text-slate-800 mb-1">Olá, {app.state.user.name}! 👋</h1>
+    <p className="text-slate-500 text-sm mb-6">Escolha um curso para estudar — seu 🔥 streak e XP valem para todos.</p>
+    <div className="grid gap-3">{COURSES.map(c=>{ const cp=app.state.courses[c.id]; const done=cp?Object.values(cp.skills).filter(x=>x.status==='mastered').length:0; const total=c.skills.length; const started=!!cp&&cp.diagnosticDone;
+      return (<button key={c.id} onClick={()=>app.setCourse(c.id)} className="w-full text-left bg-white border border-slate-200 shadow-sm rounded-2xl p-5 active:scale-[.99]">
+        <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl bg-teal-100 grid place-items-center text-2xl">{c.icon}</div>
+          <div className="flex-1"><div className="font-bold text-slate-800">{c.title}</div><div className="text-xs text-slate-500">{c.desc}</div></div>
+          <span className="text-teal-600 text-sm font-semibold">{started?'Continuar →':'Começar →'}</span></div>
+        {started ? (<div className="mt-3"><Bar value={(done/total)*100}/><div className="text-[11px] text-slate-400 mt-1">{done}/{total} tópicos dominados</div></div>)
+          : (<div className="mt-3 text-[11px] text-slate-400">{total} tópicos · começa com um teste de nível adaptativo</div>)}
+      </button>); })}</div>
+    <button onClick={onPlano} className="w-full mt-4 bg-white border border-slate-200 rounded-2xl p-4 text-left active:scale-[.99] flex items-center gap-3"><span className="text-2xl">📋</span><div><div className="font-bold text-slate-800 text-sm">Plano de estudos & métodos</div><div className="text-xs text-slate-500">Ordem lógica do conteúdo + técnicas de estudo</div></div></button>
+  </div>);
+}
+
 /* ============================ App ============================ */
-function App(){ const app=useApp(); const [tab,setTab]=useState('home'); const [lesson,setLesson]=useState(null); const [celebrate,setCelebrate]=useState(false);
+function App(){ const app=useApp(); const [tab,setTab]=useState('home'); const [lesson,setLesson]=useState(null); const [celebrate,setCelebrate]=useState(false); const [showPlano,setShowPlano]=useState(false); const [mapCourse,setMapCourse]=useState(null);
   if(!app.state.user.name) return <Onboarding app={app}/>;
-  if(!app.state.user.diagnosticDone) return <><TopBar app={app}/><Diagnostic app={app}/></>;
+  if(mapCourse) return <><TopBar app={app}/><MindMap course={findCourse(mapCourse)} onBack={()=>setMapCourse(null)}/></>;
+  if(showPlano) return <><TopBar app={app}/><Plano app={app} onBack={()=>setShowPlano(false)} onMap={(cid)=>{setShowPlano(false);setMapCourse(cid);}}/></>;
+  if(!app.state.currentCourse) return <><TopBar app={app}/><CoursePicker app={app} onPlano={()=>setShowPlano(true)}/></>;
+  if(!app.cp.diagnosticDone) return <><TopBar app={app}/><Diagnostic app={app}/></>;
   const openSkill=(id)=>setLesson({skillId:id,review:false}); const startReview=(id)=>setLesson({skillId:id,review:true});
   const closeLesson=(completed)=>{ setLesson(null); if(completed){ setCelebrate(true); setTimeout(()=>setCelebrate(false),1500);} };
   return (<div className="min-h-screen"><TopBar app={app}/>
     {lesson ? (<Lesson app={app} skillId={lesson.skillId} reviewMode={lesson.review} onDone={closeLesson}/>) : (<>
       {tab==='home' && <Home app={app} openSkill={openSkill} startReview={startReview} goTrilha={()=>setTab('trilha')} goPractice={()=>setTab('practice')}/>}
-      {tab==='trilha' && <Trilha app={app} openSkill={openSkill}/>}
+      {tab==='trilha' && <Trilha app={app} openSkill={openSkill} onMap={()=>setMapCourse(app.state.currentCourse)}/>}
       {tab==='practice' && <Practice app={app}/>}
-      {tab==='profile' && <Profile app={app}/>}</>)}
+      {tab==='profile' && <Profile app={app} onPlano={()=>setShowPlano(true)}/>}</>)}
     {!lesson && <TabBar tab={tab} setTab={setTab} dueCount={app.dueReviews.length}/>}
+    <Pomodoro/>
     {celebrate && (<div className="fixed inset-0 z-50 grid place-items-center bg-black/30 pointer-events-none"><div className="bg-white rounded-2xl px-8 py-6 text-center pop"><div className="text-5xl">🎉</div><p className="font-bold text-slate-800 mt-2">Muito bem!</p><p className="text-sm text-slate-500">Conteúdo concluído e revisões agendadas.</p></div></div>)}
   </div>); }
 

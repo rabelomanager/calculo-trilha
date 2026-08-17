@@ -1,7 +1,7 @@
 {
-  "name": "Trilha de Cálculo",
-  "short_name": "Cálculo",
-  "description": "Do fundamental ao Cálculo I — diagnóstico, trilha adaptativa e revisões espaçadas.",
+  "name": "Trilha de Estudos",
+  "short_name": "Trilha",
+  "description": "Cálculo e Ciências Aeroespaciais — diagnóstico adaptativo, trilha, exercícios infinitos e revisões espaçadas.",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",
