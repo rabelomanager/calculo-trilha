@@ -1208,7 +1208,8 @@ function Diagnostic({app}){
     setSt({i:next,curDiff,bandStreak,results});
   };
   const answered=Object.keys(st.results).length;
-  return (<div className="max-w-xl mx-auto px-5 pt-6 pb-24">
+  return (<div className="max-w-xl mx-auto px-5 pt-4 pb-24">
+    <button onClick={app.exitCourse} className="text-slate-500 text-sm mb-3">← Sair do teste</button>
     <div className="mb-4"><div className="flex justify-between text-xs text-slate-500 mb-1"><span>Teste de nível adaptativo</span><span>{answered} respondidas</span></div><Bar value={(st.i/CURR.length)*100}/></div>
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
       <div className="flex items-center justify-between mb-3"><p className="text-xs uppercase tracking-wide text-teal-600 font-semibold">{skill.mod}</p><DiffChip d={st.curDiff}/></div>
