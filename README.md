@@ -1,47 +1,62 @@
-# Trilha de Cálculo
+# Trilha de Estudos
 
-App web (PWA) de estudo de matemática — do fim do Ensino Fundamental ao Cálculo I
-(Limite, Derivada e Integral). Diagnóstico adaptativo, trilha com dificuldade que se
-ajusta ao aluno, revisões espaçadas (D+0 / D+7 / D+30) e gamificação (streak, XP, níveis).
+App de estudo de ciências exatas — um único arquivo, leve e que abre no celular.
+Você faz um teste de nível, o app monta uma **trilha sob medida** com aulas, exercícios
+e revisões, e acompanha sua evolução com gamificação e métodos de estudo ativos.
 
-Exercícios no estilo/notação de **Stewart** e **Guidorizzi** (alguns marcados com a fonte).
+## Cursos
 
-## Rodar localmente
+- **📐 Cálculo** — do fim do Ensino Fundamental ao Cálculo I: funções, limites,
+  continuidade, derivadas (regras, cadeia, implícita, L'Hôpital), integrais (partes,
+  substituição, TFC) e aplicações.
+- **🧲 Física Básica (Mecânica)** — vetores, cinemática, Leis de Newton, trabalho e
+  energia, momento e colisões, rotação.
+- **🚀 Ciências Aeroespaciais** — gravitação, fluidos, calor e termodinâmica, oscilações
+  e ondas.
 
-É um site estático de um arquivo só. Basta abrir `index.html` no navegador —
-ou servir a pasta (recomendado, habilita o service worker):
+O 🔥 streak, o XP e o nível são **compartilhados** entre todos os cursos.
 
-```bash
-python -m http.server 5599
-# abre http://localhost:5599/index.html
-```
+## O que o app faz
 
-## Publicar (Vercel — recomendado)
+- **Teste de nível adaptativo** — a dificuldade sobe quando você acerta e desce quando
+  erra, para achar seu ponto de partida. O que você já domina é pulado (mas volta em revisão).
+- **Trilha com aulas** — cada tópico tem teoria, **exemplo guiado** (revela passo a passo),
+  **flashcards** e exercícios com dificuldade adaptativa.
+- **Exercícios variados** — múltipla escolha, resposta numérica, Verdadeiro/Falso, "ache o
+  erro" e "ordene os passos". Vários tópicos têm **exercícios infinitos** (gerados na hora),
+  além de questões reais de listas e simulados.
+- **Revisão espaçada** — ao dominar um tópico, ele volta para revisão no **mesmo dia, em 7
+  dias e em 30 dias**, para fixar de verdade.
+- **Gamificação** — XP e níveis, sequência de dias (streak), **missões diárias** com bônus e
+  **conquistas** (medalhas).
+- **Métodos de estudo** — 🍅 Pomodoro (timer de foco), 🧠 Feynman (autoexplicação),
+  📝 Simulado cronometrado, 🔀 intercalação (Mistão) e 🗺️ mapas mentais de cada curso.
 
-### Opção A — Vercel CLI (mais rápido, sem GitHub)
-```bash
-npm i -g vercel      # ou use: npx vercel
-cd calculo-trilha
-vercel               # login pelo navegador na 1ª vez; siga o assistente (aceite os padrões)
-vercel --prod        # publica a versão de produção e mostra a URL final
-```
+Seu progresso fica salvo **só no seu aparelho** (não precisa de conta nem internet, exceto
+para carregar o app na primeira vez).
 
-### Opção B — GitHub + Vercel (deploy automático a cada push)
-1. Crie um repositório vazio no GitHub (ex.: `trilha-calculo`).
-2. Conecte e envie:
-   ```bash
-   cd calculo-trilha
-   git remote add origin https://github.com/SEU_USUARIO/trilha-calculo.git
-   git push -u origin main
-   ```
-3. Em https://vercel.com → **Add New… → Project → Import** o repositório → **Deploy**.
-   (Não há build; o Vercel serve os arquivos estáticos direto.)
+## Como usar
 
-## Instalar no celular
-Abra a URL do Vercel no celular e use **"Adicionar à tela inicial"**
-(Android: menu do Chrome; iPhone: botão Compartilhar do Safari). O app abre em tela
-cheia e funciona offline depois da primeira abertura.
+1. Abra o `index.html` no navegador (no computador, é só dar duplo clique).
+2. Digite seu nome e **escolha um curso**.
+3. Faça o **teste de nível** — se não souber, chute; aquilo entra na sua trilha.
+   (Pode sair a qualquer momento com o botão **"← Sair do teste"**.)
+4. Na **Início**, veja suas missões do dia, as revisões pendentes e o próximo tópico.
+   Toque em **"Iniciar aula"** para estudar.
+5. Dentro da aula: leia a teoria e o exemplo guiado, revise os **cartões** e vá para os
+   **exercícios**. Ao completar, o tópico é marcado como dominado e agenda as revisões.
+6. Use a aba **Praticar** para treino livre por tópico, o **Mistão** ou um **Simulado**.
+7. No **Perfil** você vê suas conquistas, próximas revisões, troca de curso e abre o
+   **Plano de estudos** (ordem lógica do conteúdo + guia dos métodos).
 
-## Observações
-- Os PDFs dos livros **não** vão para o repositório (ver `.gitignore`): são pesados e têm direito autoral.
-- Ao atualizar o app, suba a versão do cache em `sw.js` (`trilha-calculo-vN`) para forçar a atualização nos aparelhos.
+### Instalar no celular
+
+Abra o app no navegador do celular e use **"Adicionar à tela inicial"** (Android: menu do
+Chrome; iPhone: botão Compartilhar do Safari). Ele abre em tela cheia, com ícone próprio, e
+funciona offline depois da primeira abertura.
+
+## Fontes do conteúdo
+
+Teoria e exercícios seguem a linha dos livros de Cálculo (**Stewart**, **Guidorizzi**,
+**Thomas**) e de Física (**Young & Freedman**, **Halliday**, **Moysés**), além de listas,
+simulados e resumos da disciplina — vários exercícios trazem o **selo da fonte**.
