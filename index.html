@@ -659,7 +659,9 @@ const AERO = [
   { id:'termo-calor', mod:M3, level:'sup', title:'Calor e transferência', icon:'🔥', method:'Q = m·c·ΔT + 3 modos', gen:[genQheat],
     theory:[ MET('Calor é energia em trânsito por diferença de temperatura.'),
       F('Q=m\\,c\\,\\Delta T'),
+      F('\\text{Mudança de fase: } Q=mL\\ (L=\\text{calor latente})'),
       P('Três modos: condução (contato), convecção (fluido em movimento), radiação (ondas eletromagnéticas).'),
+      F('\\text{Condução: } P=\\frac{kA\\,\\Delta T}{L};\\qquad \\text{Radiação: } P=\\sigma\\varepsilon A T^4'),
       ERR('Erro comum: confundir calor com temperatura. Temperatura é o nível; calor é a energia que flui.'),
       WHY('Reentrada atmosférica e refrigeração de motores dependem de dominar transferência de calor.') ],
     examples:[ {q:'Q=mc\\Delta T', steps:['2 kg, c=4, ΔT=10','Q=2·4·10=80 J']} ],
@@ -673,7 +675,9 @@ const AERO = [
   { id:'termo-leis', mod:M3, level:'sup', title:'Leis da termodinâmica', icon:'⚙️', method:'Conservação + seta do tempo',
     theory:[ MET('1ª lei: conservação de energia. 2ª lei: entropia nunca diminui (há um limite).'),
       F('\\Delta U = Q - W'),
-      P('ΔU é a variação de energia interna; W é o trabalho feito PELO gás.'),
+      F('\\text{Trabalho do gás: } W=\\int p\\,dV\\ (=p\\,\\Delta V \\text{ se p é constante})'),
+      P('ΔU é a variação de energia interna; W é o trabalho feito PELO gás. Convenção: Q>0 quando entra calor, W>0 quando o gás realiza trabalho.'),
+      F('\\text{2ª lei: } \\Delta S \\ge 0\\quad (S=\\text{entropia})'),
       ERR('Erro comum: esperar uma máquina 100% eficiente. A 2ª lei proíbe.'),
       WHY('Todo motor, turbina e ciclo de potência obedece a essas leis.') ],
     examples:[ {q:'\\Delta U=Q-W', steps:['Q=100, W=40','ΔU=60 J']} ],
@@ -686,6 +690,8 @@ const AERO = [
   { id:'termo-gas', mod:M3, level:'sup', title:'Gás ideal e cinética dos gases', icon:'💨', method:'Ponte micro↔macro', gen:[genGasLaw],
     theory:[ MET('A visão molecular explica pressão e temperatura como efeitos do movimento das moléculas.'),
       F('pV=nRT,\\qquad \\bar{E}_{cin}=\\tfrac32 k T'),
+      F('\\text{Energia interna (gás ideal monoatômico): } U=\\tfrac32 nRT'),
+      F('\\text{Velocidade quadrática média: } v_{rms}=\\sqrt{\\tfrac{3kT}{m}}'),
       P('Temperatura é proporcional à energia cinética média das moléculas.'),
       ERR('Erro comum: usar temperatura em °C. Nas leis dos gases, sempre KELVIN.'),
       WHY('Modela o ar, a combustão e os gases de exaustão de motores e turbinas.') ],
@@ -698,7 +704,8 @@ const AERO = [
     ]},
   { id:'termo-ciclos', mod:M3, level:'sup', title:'Ciclos térmicos e Carnot', icon:'🔄', method:'Eficiência máxima', gen:[genCarnot],
     theory:[ MET('Máquinas térmicas convertem calor em trabalho num ciclo; Carnot dá o teto de eficiência.'),
-      F('\\eta=1-\\frac{T_c}{T_h}\\quad(\\text{Kelvin})'),
+      F('\\eta=1-\\frac{T_c}{T_h}\\quad(\\text{Carnot, em Kelvin})'),
+      F('\\eta=\\frac{W}{Q_h}=1-\\frac{Q_c}{Q_h}\\quad(\\text{qualquer máquina})'),
       P('Motores de combustão, turbinas a gás e ciclos a vapor são variações desse princípio.'),
       ERR('Erro comum: esquecer o Kelvin, ou achar que dá para superar a eficiência de Carnot.'),
       WHY('Define o limite de desempenho de turbinas e motores aeronáuticos.') ],
@@ -714,14 +721,20 @@ const AERO = [
   { id:'osc-mhs', mod:M4, level:'sup', title:'MHS: massa-mola', icon:'🌀', method:'Força restauradora ∝ deslocamento', video:'https://www.youtube.com/watch?v=bEc1xlijYlY', gen:[genSpring],
     theory:[ MET('Uma força que sempre puxa de volta ao equilíbrio, proporcional ao deslocamento, gera oscilação harmônica.'),
       F('F=-k x,\\qquad T=2\\pi\\sqrt{\\frac{m}{k}}'),
+      F('x(t)=A\\cos(\\omega t+\\phi),\\quad \\omega=\\sqrt{k/m}=2\\pi f'),
+      F('v=-A\\omega\\sin(\\omega t+\\phi),\\qquad a=-\\omega^2 x'),
+      F('\\text{Energia total: } E=\\tfrac12 kA^2\\ (\\text{constante})'),
+      P('Oscilador amortecido (atrito \\propto v): a amplitude decai — x(t)=Ae^{-bt/2m}\\cos(\\omega\' t+\\phi).'),
       ERR('Erro comum: achar que o período depende da amplitude. No MHS ideal, não depende.'),
       WHY('Modela vibrações de estruturas de aeronaves (aproximação massa-mola).') ],
     examples:[ {q:'T=2\\pi\\sqrt{m/k}', steps:['m=1, k=4','T=2π·0,5=π s']} ],
-    cards:[['Lei de Hooke','F=-kx'],['Período massa-mola','2\\pi\\sqrt{m/k}']],
+    cards:[['Lei de Hooke','F=-kx'],['Período massa-mola','2\\pi\\sqrt{m/k}'],['Posição no MHS','A\\cos(\\omega t+\\phi)'],['Energia no MHS','\\tfrac12 kA^2']],
     pool:[
       tf(1,'O período de um sistema massa-mola depende da amplitude. Verdadeiro?',false,'Só de m e k.','Falso.'),
       nu(2,'m=1 kg, k=16 N/m. Período T? (s, 2 casas)',1.57,0.05,'T=2π√(m/k).','2π√(1/16)=π/2≈1,57.'),
       mc(2,'No MHS, a força restauradora é proporcional a:',['velocidade','deslocamento','massa','tempo'],1,'F=-kx.','deslocamento.'),
+      mcS(2,'A energia mecânica total de um MHS de amplitude A é:',['\\tfrac12 kA','\\tfrac12 kA^2','kA^2','\\tfrac12 mA'],1,'Constante ao longo do movimento.','½kA².','Halliday'),
+      mcS(2,'No MHS, a aceleração vale:',['-\\omega x','-\\omega^2 x','\\omega^2 x','-kx'],1,'a=-ω²x.','-ω²x.','Halliday'),
     ]},
   { id:'osc-pendulo', mod:M4, level:'sup', title:'Pêndulo simples', icon:'🕰️', method:'Oscilação pela gravidade', video:'https://www.youtube.com/watch?v=j12c99x1O4E', gen:[genPend],
     theory:[ MET('Para ângulos pequenos, o pêndulo também faz MHS.'),
@@ -736,16 +749,24 @@ const AERO = [
     ]},
   { id:'ond-ondas', mod:M4, level:'sup', title:'Ondas e som', icon:'🔊', method:'v = λ·f', video:'https://www.youtube.com/watch?v=M2D5-zXlD6A', gen:[genWave],
     theory:[ MET('Uma onda transporta energia sem transportar matéria; frequência e comprimento se ligam pela velocidade.'),
-      F('v=\\lambda f'),
+      F('v=\\lambda f=\\frac{\\omega}{k},\\qquad k=\\frac{2\\pi}{\\lambda}'),
+      F('y(x,t)=y_m\\cos(kx-\\omega t)\\ (\\text{onda progressiva})'),
+      F('\\text{Corda tensionada: } v=\\sqrt{\\tfrac{\\tau}{\\mu}}'),
+      P('Ondas estacionárias em corda fixa nas duas pontas: f_n=\\frac{n v}{2L},\\ n=1,2,3\\ldots (harmônicos).'),
+      F('\\text{Som: } I=\\frac{P}{4\\pi r^2},\\qquad \\beta=10\\log\\frac{I}{I_0}\\ \\text{(dB)}'),
+      P('Efeito Doppler: f\'=f\\frac{v\\pm v_o}{v\\mp v_f}; batimentos: f_b=|f_1-f_2|.'),
       P('No mesmo meio, a velocidade é fixa: aumentar a frequência diminui o comprimento de onda.'),
       ERR('Erro comum: achar que aumentar a frequência aumenta a velocidade. No mesmo meio, v é constante.'),
       WHY('Ondas sonoras, ruído e interação fluido-estrutura (flutter) são centrais na engenharia aeroespacial.') ],
     examples:[ {q:'v=\\lambda f', steps:['λ=2 m, f=5 Hz','v=10 m/s']} ],
-    cards:[['Relação da onda','v=\\lambda f'],['Mesmo meio','v constante']],
+    cards:[['Relação da onda','v=\\lambda f'],['Número de onda k','\\frac{2\\pi}{\\lambda}'],['Harmônicos (corda fixa)','f_n=\\frac{nv}{2L}'],['Nível sonoro','\\beta=10\\log(I/I_0)']],
     pool:[
       nu(1,'λ=2 m e f=5 Hz. Velocidade? (m/s)',10,0.5,'v=λf.','2·5=10.'),
       tf(2,'Aumentar a frequência (mesmo meio) aumenta a velocidade da onda. Verdadeiro?',false,'v é fixa no meio.','Falso: muda λ.'),
       mc(2,'No mesmo meio, se a frequência dobra, o comprimento de onda:',['dobra','cai pela metade','não muda','quadruplica'],1,'v=λf constante.','cai pela metade.'),
+      mcS(2,'O número de onda k é:',['2\\pi\\lambda','\\frac{2\\pi}{\\lambda}','\\frac{\\lambda}{2\\pi}','\\frac{1}{\\lambda}'],1,'k=2π/λ.','2π/λ.','Halliday'),
+      nuS(3,'Numa corda fixa nas duas pontas, v=20 m/s e L=2 m. Frequência fundamental (n=1)? (Hz)',5,0.1,'f_1=v/2L.','20/(2·2)=5 Hz.','Halliday'),
+      {d:2,type:'tf',q:'No efeito Doppler, quando fonte e observador se aproximam, a frequência ouvida aumenta. Verdadeiro?',a:true,hint:'Aproximação → f maior.',sol:'Verdadeiro.',src:'Halliday'},
     ]},
 ];
 
@@ -1080,7 +1101,7 @@ function Exercise({item, mode, adaptive, onDone}){
 
   return (<div className="fade-in">
     <div className="flex flex-wrap gap-2 mb-2">
-      {item.src && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':item.src==='Guidorizzi'?'📗':'📄'} {item.src}</span>}
+      {item.src && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">{item.src==='Stewart'?'📘':item.src==='Guidorizzi'?'📗':item.src==='Halliday'?'📕':'📄'} {item.src}</span>}
       {typeBadge && <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 font-medium">🧠 {typeBadge}</span>}
       {item.gen && <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">♾️ gerado</span>}
     </div>
