@@ -20,8 +20,9 @@ O 🔥 streak, o XP e o nível são **compartilhados** entre todos os cursos.
 
 - **Teste de nível adaptativo** — a dificuldade sobe quando você acerta e desce quando
   erra, para achar seu ponto de partida. O que você já domina é pulado (mas volta em revisão).
-- **Trilha com aulas** — cada tópico tem teoria, **exemplo guiado** (revela passo a passo),
-  **flashcards** e exercícios com dificuldade adaptativa.
+- **Trilha com aulas** — cada tópico tem teoria, **aula em vídeo** (YouTube, nos tópicos de
+  Ciências Aeroespaciais), **exemplo guiado** (revela passo a passo), **flashcards** e
+  exercícios com dificuldade adaptativa.
 - **Exercícios variados** — múltipla escolha, resposta numérica, Verdadeiro/Falso, "ache o
   erro" e "ordene os passos". Vários tópicos têm **exercícios infinitos** (gerados na hora),
   além de questões reais de listas e simulados.
@@ -43,8 +44,9 @@ para carregar o app na primeira vez).
    (Pode sair a qualquer momento com o botão **"← Sair do teste"**.)
 4. Na **Início**, veja suas missões do dia, as revisões pendentes e o próximo tópico.
    Toque em **"Iniciar aula"** para estudar.
-5. Dentro da aula: leia a teoria e o exemplo guiado, revise os **cartões** e vá para os
-   **exercícios**. Ao completar, o tópico é marcado como dominado e agenda as revisões.
+5. Dentro da aula: leia a teoria, assista à **aula em vídeo** (quando houver), veja o exemplo
+   guiado, revise os **cartões** e vá para os **exercícios**. Ao completar, o tópico é marcado
+   como dominado e agenda as revisões.
 6. Use a aba **Praticar** para treino livre por tópico, o **Mistão** ou um **Simulado**.
 7. No **Perfil** você vê suas conquistas, próximas revisões, troca de curso e abre o
    **Plano de estudos** (ordem lógica do conteúdo + guia dos métodos).
