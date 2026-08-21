@@ -534,9 +534,11 @@ function genGravF(){ const m1=ri(2,9), m2=ri(2,9), r=ri(2,6); const v=m1*m2/(r*r
 const M1='Módulo 1 · Gravitação', M2='Módulo 2 · Fluidos', M3='Módulo 3 · Calor e Termodinâmica', M4='Módulo 4 · Oscilações e Ondas';
 const AERO = [
   /* -------- M1: Gravitação -------- */
-  { id:'grav-lei', mod:M1, level:'sup', title:'Gravitação universal', icon:'🍎', method:'Lei do inverso do quadrado', gen:[genGravF],
+  { id:'grav-lei', mod:M1, level:'sup', title:'Gravitação universal', icon:'🍎', method:'Lei do inverso do quadrado', video:'https://www.youtube.com/watch?v=y2o7Dr0JXQ4', gen:[genGravF],
     theory:[ MET('Toda massa atrai toda massa; a intensidade cai com o quadrado da distância.'),
       F('F=G\\frac{m_1 m_2}{r^2},\\quad G\\approx 6{,}67\\times10^{-11}'),
+      F('\\text{Campo: } g(r)=\\frac{GM}{r^2};\\quad \\text{peso } P=mg'),
+      P('Superposição: com vários corpos, a força resultante é a soma vetorial \\vec F_R=\\sum_i \\vec F_i (some as componentes).'),
       P('É a mesma força que segura a maçã na árvore e a Lua em órbita.'),
       ERR('Erro comum: achar que dobrar a distância reduz a força pela metade. Cai para 1/4 (é r²).'),
       WHY('Rege órbitas de satélites e a trajetória de foguetes e sondas.') ],
@@ -547,9 +549,10 @@ const AERO = [
       tf(2,'Dobrar a distância entre dois corpos reduz a força gravitacional à metade. Verdadeiro?',false,'É r², não r.','Falso: cai para 1/4.'),
       mc(2,'Se a distância triplica, a força fica:',['3× menor','9× menor','3× maior','igual'],1,'3²=9.','9× menor.'),
     ]},
-  { id:'grav-orbita', mod:M1, level:'sup', title:'Órbitas e velocidade orbital', icon:'🛰️', method:'Gravidade = força centrípeta',
+  { id:'grav-orbita', mod:M1, level:'sup', title:'Órbitas e velocidade orbital', icon:'🛰️', method:'Gravidade = força centrípeta', video:'https://www.youtube.com/watch?v=Plfc16aYuw0',
     theory:[ MET('Em órbita circular, a gravidade fornece exatamente a força centrípeta.'),
       F('v=\\sqrt{\\frac{GM}{r}}'),
+      F('T=2\\pi\\sqrt{\\frac{r^3}{GM}},\\qquad E=-\\frac{GMm}{2r}'),
       P('Por isso um satélite não "cai": ele cai o tempo todo, mas contorna a Terra.'),
       ERR('Erro comum: satélite mais alto é mais rápido. É o contrário — v cai com 1/√r.'),
       WHY('Define as altitudes de satélites (LEO, órbita geoestacionária).') ],
@@ -562,10 +565,11 @@ const AERO = [
       mcS(2,'Um satélite geoestacionário fica sempre sobre o mesmo ponto da Terra porque seu período orbital é de aproximadamente:',['1 hora','12 horas','24 horas','1 mês'],2,'Ele acompanha a rotação da Terra.','≈ 24 h (1 dia).','Lista 1 · CA'),
       nuS(3,'Um cometa tem velocidade 2{,}0\\times10^4 m/s a 2{,}5\\times10^{11} m do Sol. Pela conservação do momento angular (L=mvr), qual a velocidade a 5{,}0\\times10^{10} m? (m/s)',100000,1000,'v_2 = v_1 r_1 / r_2.','2·10⁴·(2,5·10¹¹/5·10¹⁰) = 1·10⁵ m/s.','Lista 1 · CA'),
     ]},
-  { id:'grav-escape', mod:M1, level:'sup', title:'Velocidade de escape', icon:'🚀', method:'Energia para escapar do poço gravitacional',
+  { id:'grav-escape', mod:M1, level:'sup', title:'Velocidade de escape', icon:'🚀', method:'Energia para escapar do poço gravitacional', video:'https://www.youtube.com/watch?v=JhEYI25IhWU',
     theory:[ MET('É a velocidade mínima para vencer a atração e nunca mais voltar (energia total = 0).'),
       F('v_e=\\sqrt{\\frac{2GM}{R}}=\\sqrt2\\,v_{orbital}'),
-      P('Na Terra, ~11,2 km/s.'),
+      F('\\text{Energia potencial: } U(r)=-\\frac{GMm}{r}\\ (U=0 \\text{ no infinito})'),
+      P('Na Terra, ~11,2 km/s. Sai de \\tfrac12 mv_e^2-\\tfrac{GMm}{R}=0 (energia total nula).'),
       ERR('Erro comum: achar que depende da massa do foguete. Não depende — só de M e R do corpo.'),
       WHY('Define o "delta-v" mínimo para missões interplanetárias.') ],
     examples:[ {q:'v_e', steps:['v_e=\\sqrt2\\cdot v_{orb}','~1{,}41\\times a orbital']} ],
@@ -575,10 +579,12 @@ const AERO = [
       tf(2,'A velocidade de escape depende da massa do foguete. Verdadeiro?',false,'Só de M e R do astro.','Falso.'),
       nu(3,'Se a velocidade orbital é 5 km/s, a de escape é ~? (km/s, 2 casas)',7.07,0.1,'×√2.','5·1,414 ≈ 7,07.'),
     ]},
-  { id:'grav-kepler', mod:M1, level:'sup', title:'Leis de Kepler', icon:'🪐', method:'Geometria das órbitas',
+  { id:'grav-kepler', mod:M1, level:'sup', title:'Leis de Kepler', icon:'🪐', method:'Geometria das órbitas', video:'https://www.youtube.com/watch?v=71l6YK-MEoY',
     theory:[ MET('Órbitas são elipses; a 3ª lei liga período e raio.'),
-      F('T^2 \\propto r^3'),
-      P('1ª: órbitas elípticas; 2ª: áreas iguais em tempos iguais (mais rápido perto); 3ª: T²∝r³.'),
+      F('T^2 \\propto r^3,\\qquad \\frac{T^2}{a^3}=\\frac{4\\pi^2}{GM}'),
+      F('\\text{Vis-viva: } v^2=GM\\left(\\frac{2}{r}-\\frac{1}{a}\\right)'),
+      P('1ª: órbitas elípticas; 2ª: áreas iguais em tempos iguais (conservação do momento angular); 3ª: T²∝a³.'),
+      TIP('Teorema das Cascas: fora de uma esfera, a massa age como se estivesse toda no centro; dentro de uma casca esférica, a força gravitacional resultante é nula.'),
       ERR('Erro comum: usar T∝r. A relação é T²∝r³.'),
       WHY('Permite prever o período de satélites e planetas a partir do raio da órbita.') ],
     examples:[ {q:'T^2\\propto r^3', steps:['r \\times 4','r^3 \\times 64','T \\times 8']} ],
@@ -590,9 +596,12 @@ const AERO = [
     ]},
 
   /* -------- M2: Fluidos -------- */
-  { id:'flu-pressao', mod:M2, level:'sup', title:'Pressão e lei de Stevin', icon:'🌊', method:'Pressão cresce com a profundidade', gen:[genPress],
+  { id:'flu-pressao', mod:M2, level:'sup', title:'Pressão e lei de Stevin', icon:'🌊', method:'Pressão cresce com a profundidade', video:'https://www.youtube.com/watch?v=tC7PjUgrx1w', gen:[genPress],
     theory:[ MET('Num fluido em repouso, a pressão aumenta linearmente com a profundidade.'),
-      F('p=p_0+\\rho g h'),
+      F('p=p_0+\\rho g h\\qquad(\\text{Lei de Stevin})'),
+      P('Pressão absoluta inclui a atmosférica; a manométrica é medida em relação a ela: p_{abs}=p_{atm}+p_{man}.'),
+      F('\\text{Pascal: }\\frac{F_1}{A_1}=\\frac{F_2}{A_2}\\ (\\text{prensa hidráulica})'),
+      P('Densidade: \\rho=m/V; densidade relativa = \\rho/\\rho_{água}.'),
       ERR('Erro comum: achar que a pressão depende do formato ou do volume do recipiente. Depende só da profundidade.'),
       WHY('Base da atmosfera: a pressão do ar cai com a altitude — essencial para voo e balões.') ],
     examples:[ {q:'p=\\rho g h', steps:['dobra h','dobra a pressão (manométrica)']} ],
@@ -603,10 +612,11 @@ const AERO = [
       mc(2,'A pressão num fluido em repouso aumenta com:',['a largura','a profundidade','a cor','o volume'],1,'p=ρgh.','profundidade.'),
       nuS(3,'Num manômetro, um fluido de densidade relativa 1,6 (ρ=1600 kg/m³) forma uma coluna de 420 mm. Qual a pressão manométrica ρgh? (g=9,8; Pa)',6585.6,5,'ρ=1,6·1000; depois p=ρgh.','1600·9,8·0,420 ≈ 6585,6 Pa.','Lista 2 · CA'),
     ]},
-  { id:'flu-arquimedes', mod:M2, level:'sup', title:'Empuxo (Arquimedes)', icon:'🎈', method:'Peso do fluido deslocado', gen:[genBuoy],
+  { id:'flu-arquimedes', mod:M2, level:'sup', title:'Empuxo (Arquimedes)', icon:'🎈', method:'Peso do fluido deslocado', video:'https://www.youtube.com/watch?v=57qs91GBscU', gen:[genBuoy],
     theory:[ MET('Todo corpo imerso recebe um empuxo igual ao peso do fluido que ele desloca.'),
       F('E=\\rho_{fluido}\\,V\\,g'),
-      P('Flutua se a densidade média do corpo for menor que a do fluido.'),
+      P('Flutua se a densidade média do corpo for menor que a do fluido. No equilíbrio de flutuação, P=E.'),
+      F('\\text{Fração submersa: }\\frac{V_{sub}}{V}=\\frac{\\rho_{corpo}}{\\rho_{fluido}}'),
       ERR('Erro comum: usar a densidade do objeto no empuxo. É a densidade do FLUIDO.'),
       WHY('Explica por que balões e dirigíveis (mais leves que o ar) sobem.') ],
     examples:[ {q:'balão', steps:['E do ar > peso','densidade menor que o ar','sobe']} ],
@@ -617,9 +627,10 @@ const AERO = [
       mc(2,'No empuxo E=ρVg, ρ é a densidade:',['do objeto','do fluido','do ar sempre','do vácuo'],1,'Fluido deslocado.','do fluido.'),
       er(3,'Ache o erro no cálculo do empuxo de um bloco (V=2 m³) na água:',['E = ρ_fluido · V · g','E = 1000 · 2 · 10','E = 20 N'],2,'Confira a conta.','1000·2·10 = 20000 N, não 20. Erro no passo 3.'),
     ]},
-  { id:'flu-continuidade', mod:M2, level:'sup', title:'Equação da continuidade', icon:'🚿', method:'Conservação de vazão', gen:[genCont],
+  { id:'flu-continuidade', mod:M2, level:'sup', title:'Equação da continuidade', icon:'🚿', method:'Conservação de vazão', video:'https://www.youtube.com/watch?v=QMjYfmwinrU', gen:[genCont],
     theory:[ MET('O que entra tem que sair: a vazão (A·v) se conserva num fluido incompressível.'),
-      F('A_1 v_1 = A_2 v_2'),
+      F('\\text{Vazão } Q=A\\,v;\\qquad A_1 v_1 = A_2 v_2'),
+      P('Vazão mássica: \\dot m=\\rho A v; em geral \\rho_1 A_1 v_1=\\rho_2 A_2 v_2 (conservação de massa).'),
       ERR('Erro comum: achar que onde estreita o fluido fica mais lento. É o contrário — acelera.'),
       WHY('Explica por que o ar acelera onde a seção estreita — base para entender a asa.') ],
     examples:[ {q:'A_1 v_1=A_2 v_2', steps:['área cai pela metade','velocidade dobra']} ],
@@ -629,10 +640,12 @@ const AERO = [
       nu(2,'Se A₁=6, v₁=4 e A₂=3 (unid. compatíveis), qual v₂?',8,0.1,'v₂=A₁v₁/A₂.','6·4/3=8.'),
       od(2,'Ordene para achar v₂ dado A₁=8, v₁=3, A₂=2:',['A₁v₁ = 8·3 = 24','v₂ = 24 / A₂','v₂ = 24 / 2 = 12'],'Comece pela vazão A₁v₁.'),
     ]},
-  { id:'flu-bernoulli', mod:M2, level:'sup', title:'Bernoulli e sustentação', icon:'✈️', method:'Energia do fluido em movimento',
+  { id:'flu-bernoulli', mod:M2, level:'sup', title:'Bernoulli e sustentação', icon:'✈️', method:'Energia do fluido em movimento', video:'https://www.youtube.com/watch?v=k3bvy8Sx9fM',
     theory:[ MET('Ao longo de uma linha de corrente, pressão + energia cinética + potencial se conservam.'),
       F('p+\\tfrac12\\rho v^2+\\rho g h=\\text{const}'),
       P('Onde o fluido vai mais rápido, a pressão é menor.'),
+      F('\\text{Torricelli: } v=\\sqrt{2gh}\\ (\\text{jato por um furo})'),
+      P('Aplicações: Venturi (mede velocidade pela queda de pressão no estreitamento) e Pitot: v=\\sqrt{2\\Delta p/\\rho}.'),
       ERR('Erro comum: tratar Bernoulli como a explicação completa da sustentação — ele dá a intuição pressão↔velocidade, mas a asa também empurra ar para baixo (3ª lei).'),
       WHY('Base da aerodinâmica: ar mais rápido no extradorso → menor pressão → sustentação.') ],
     examples:[ {q:'asa', steps:['ar mais rápido em cima','pressão menor em cima','força resultante para cima']} ],
@@ -698,7 +711,7 @@ const AERO = [
     ]},
 
   /* -------- M4: Oscilações e Ondas -------- */
-  { id:'osc-mhs', mod:M4, level:'sup', title:'MHS: massa-mola', icon:'🌀', method:'Força restauradora ∝ deslocamento', gen:[genSpring],
+  { id:'osc-mhs', mod:M4, level:'sup', title:'MHS: massa-mola', icon:'🌀', method:'Força restauradora ∝ deslocamento', video:'https://www.youtube.com/watch?v=bEc1xlijYlY', gen:[genSpring],
     theory:[ MET('Uma força que sempre puxa de volta ao equilíbrio, proporcional ao deslocamento, gera oscilação harmônica.'),
       F('F=-k x,\\qquad T=2\\pi\\sqrt{\\frac{m}{k}}'),
       ERR('Erro comum: achar que o período depende da amplitude. No MHS ideal, não depende.'),
@@ -710,7 +723,7 @@ const AERO = [
       nu(2,'m=1 kg, k=16 N/m. Período T? (s, 2 casas)',1.57,0.05,'T=2π√(m/k).','2π√(1/16)=π/2≈1,57.'),
       mc(2,'No MHS, a força restauradora é proporcional a:',['velocidade','deslocamento','massa','tempo'],1,'F=-kx.','deslocamento.'),
     ]},
-  { id:'osc-pendulo', mod:M4, level:'sup', title:'Pêndulo simples', icon:'🕰️', method:'Oscilação pela gravidade', gen:[genPend],
+  { id:'osc-pendulo', mod:M4, level:'sup', title:'Pêndulo simples', icon:'🕰️', method:'Oscilação pela gravidade', video:'https://www.youtube.com/watch?v=j12c99x1O4E', gen:[genPend],
     theory:[ MET('Para ângulos pequenos, o pêndulo também faz MHS.'),
       F('T=2\\pi\\sqrt{\\frac{L}{g}}'),
       ERR('Erro comum: achar que pêndulo mais pesado oscila mais devagar. O período independe da massa.'),
@@ -721,7 +734,7 @@ const AERO = [
       tf(1,'O período do pêndulo simples depende da massa. Verdadeiro?',false,'Só de L e g.','Falso.'),
       nu(2,'L=0,9 m, g=10. Período T? (s, 2 casas)',1.88,0.05,'T=2π√(L/g).','2π√0,09≈1,88.'),
     ]},
-  { id:'ond-ondas', mod:M4, level:'sup', title:'Ondas e som', icon:'🔊', method:'v = λ·f', gen:[genWave],
+  { id:'ond-ondas', mod:M4, level:'sup', title:'Ondas e som', icon:'🔊', method:'v = λ·f', video:'https://www.youtube.com/watch?v=M2D5-zXlD6A', gen:[genWave],
     theory:[ MET('Uma onda transporta energia sem transportar matéria; frequência e comprimento se ligam pela velocidade.'),
       F('v=\\lambda f'),
       P('No mesmo meio, a velocidade é fixa: aumentar a frequência diminui o comprimento de onda.'),
@@ -1149,6 +1162,23 @@ function GuidedExample({ex}){
   </div>);
 }
 
+/* ============================ Aula em vídeo (YouTube) ============================ */
+function VideoAula({url}){
+  const [open,setOpen]=useState(false);
+  const id=(String(url).match(/[?&]v=([\w-]+)/)||[])[1];
+  if(!id) return null;
+  return (<div className="mt-4">
+    {open ? (
+      <div className="rounded-xl overflow-hidden border border-slate-200 bg-black" style={{position:'relative',paddingBottom:'56.25%',height:0}}>
+        <iframe src={"https://www.youtube-nocookie.com/embed/"+id} title="Aula em vídeo" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:0}}/>
+      </div>
+    ) : (
+      <button onClick={()=>setOpen(true)} className="w-full border-2 border-red-200 bg-red-50 text-red-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-[.99]">▶️ Assistir aula em vídeo</button>
+    )}
+    <a href={url} target="_blank" rel="noopener" className="block text-center text-[11px] text-slate-400 mt-1 underline">abrir no YouTube</a>
+  </div>);
+}
+
 /* ============================ Motor adaptativo (aula/revisão) ============================ */
 function AdaptiveExercises({skill, startDiff, target, escalate, reviewMode, onCorrect, onFinish}){
   const [diff,setDiff]=useState(startDiff||1);
@@ -1257,6 +1287,7 @@ function Lesson({app, skillId, onDone, reviewMode}){
         if(b.t==='err') return <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-red-700 text-sm">⚠️ <Rich s={b.c}/></div>;
         if(b.t==='why') return <div key={i} className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-indigo-700 text-sm">🎯 <b>Por que importa:</b> <Rich s={b.c}/></div>;
         return null; })}</div>
+      {skill.video && <VideoAula url={skill.video}/>}
       {skill.examples?.length>0 && (<div className="mt-4"><h4 className="text-sm font-bold text-slate-600 mb-2 px-1">Exemplo guiado (revele passo a passo)</h4>{skill.examples.map((ex,i)=><div key={i} className="mb-2"><GuidedExample ex={ex}/></div>)}</div>)}
       <FeynmanCard skill={skill}/>
       <a href={"https://www.symbolab.com/solver/step-by-step/"+encodeURIComponent(skill.title)} target="_blank" rel="noopener" className="block text-center text-sm text-teal-600 mt-4 underline">🔎 Ver mais exemplos no Symbolab</a>
